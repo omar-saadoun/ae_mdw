@@ -71,7 +71,9 @@ defmodule AeMdw.MixProject do
       {:assertions, "~> 0.18.1", only: [:test]},
       {:dialyxir, "~> 1.0", only: [:dev], runtime: false},
       {:mock, "~> 0.3.0", only: :test},
-      {:phoenix_html, "~> 2.11"}
+      {:phoenix_html, "~> 2.11"},
+      {:rocksdb, "~> 1.6"},
+      {:sext, "~> 1.8"},
     ]
   end
 

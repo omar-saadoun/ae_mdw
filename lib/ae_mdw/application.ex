@@ -24,12 +24,12 @@ defmodule AeMdw.Application do
     init(:db_state)
     # init(:aesophia)
 
-    children = [
-      AeMdw.Sync.Watcher,
-      AeMdw.Sync.Supervisor,
-      AeMdwWeb.Supervisor,
-      AeMdwWeb.Websocket.Supervisor
-    ]
+    children =
+      [AeMdw.RocksdbManager,
+       AeMdw.Sync.Watcher,
+       AeMdw.Sync.Supervisor,
+       AeMdwWeb.Supervisor,
+       AeMdwWeb.Websocket.Supervisor]
 
     {:ok, sup_pid} = Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__)
     Application.fetch_env!(:ae_mdw, :sync) && sync(true)
