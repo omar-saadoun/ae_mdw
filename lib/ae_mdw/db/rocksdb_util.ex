@@ -1,5 +1,33 @@
 defmodule AeMdw.Db.RocksdbUtil do
 
+  import AeMdw.Util
+
+  def read_block!(bi),
+    do: read_block(bi) |> one!
+
+  def read_block(kbi) when is_integer(kbi),
+    do: read_block({kbi, -1})
+
+  def read_block({_, _} = bi) do
+    {db, cf} = AeMdw.RocksdbManager.cf_handle!(:block)
+    get(db, cf, bi)
+  end
+
+  def first_gen(),
+    do: ensure_key!(:block, :first) |> (fn {{h,-1},_} -> h end).()
+
+  def last_gen(),
+    do: ensure_key!(:block, :last) |> (fn {{h,-1},_} -> h end).()
+
+  def ensure_key!(cf, getter) do
+    case do_iter(cf, getter) do
+      :"$end_of_table" ->
+        raise RuntimeError, message: "can't get #{getter} key for table #{cf}"
+      k ->
+        k
+    end
+  end
+
   def first(cf), do: do_iter(cf, :first)
   def last(cf),  do: do_iter(cf, :last)
 
@@ -24,9 +52,9 @@ defmodule AeMdw.Db.RocksdbUtil do
   def get(db, cf, key, opts \\ []) do
     case :rocksdb.get(db, cf, encode_key(key), opts) do
       {:ok, val} ->
-        {:ok, decode_value(val)}
+        [decode_value(val)]
       :not_found ->
-        :not_found
+        []
     end
   end
 

@@ -12,7 +12,9 @@ defmodule AeMdwWeb.BlockController do
   require Model
 
   import AeMdwWeb.Util
-  import AeMdw.{Util, Db.Util}
+  import AeMdw.Util
+  import AeMdw.Db.Util, only: [collect_keys: 5, prev: 2, prev_block_type: 1]
+  import AeMdw.Db.RocksdbUtil
 
   @tab __MODULE__
 
