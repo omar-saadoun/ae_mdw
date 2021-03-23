@@ -9,7 +9,7 @@ defmodule AeMdw.Db.RocksdbUtil do
     do: read_block({kbi, -1})
 
   def read_block({_, _} = bi) do
-    {db, cf} = AeMdw.RocksdbManager.cf_handle!(:block)
+    {db, cf} = AeMdw.RocksdbManager.cf_handle!(:block) # FIXME: change table name back to ~t[block]
     get(db, cf, bi)
   end
 
@@ -30,6 +30,32 @@ defmodule AeMdw.Db.RocksdbUtil do
 
   def first(cf), do: do_iter(cf, :first)
   def last(cf),  do: do_iter(cf, :last)
+
+  def collect_keys(tab, acc, start_key, next_fn, progress_fn) do
+    case next_fn.(tab, start_key) do
+      :"$end_of_table" ->
+        acc
+
+      next_key ->
+        case progress_fn.(next_key, acc) do
+          {:halt, res_acc} -> res_acc
+          {:cont, next_acc} -> collect_keys(tab, next_acc, next_key, next_fn, progress_fn)
+        end
+    end
+  end
+
+  def prev(cf, key) do
+    {db, cf_handle} = AeMdw.RocksdbManager.cf_handle!(cf)
+    {:ok, iter} = :rocksdb.iterator(db, cf_handle, iterate_upper_bound: encode_key(key))
+    res = case :rocksdb.iterator_move(iter, :last) do
+            {:error, _} ->
+              :"$end_of_table"
+            {:ok, key, _value} ->
+              decode_key(key) # FIXME: return key value pair
+          end
+    :rocksdb.iterator_close(iter)
+    res
+  end
 
   # FIXME: db connection pool
   defp do_iter(cf, first_or_last) do

@@ -13,7 +13,7 @@ defmodule AeMdwWeb.BlockController do
 
   import AeMdwWeb.Util
   import AeMdw.Util
-  import AeMdw.Db.Util, only: [collect_keys: 5, prev: 2, prev_block_type: 1]
+  import AeMdw.Db.Util, only: [prev_block_type: 1]
   import AeMdw.Db.RocksdbUtil
 
   @tab __MODULE__
@@ -89,7 +89,7 @@ defmodule AeMdwWeb.BlockController do
   end
 
   defp block_jsons(height, last_gen) when height < last_gen do
-    collect_keys(Model.Block, [], {height, <<>>}, &prev/2, fn
+    collect_keys(:block, [], {height, <<>>}, &prev/2, fn
       {^height, _} = k, acc ->
         {:cont, [Format.to_map(read_block!(k)) | acc]}
 

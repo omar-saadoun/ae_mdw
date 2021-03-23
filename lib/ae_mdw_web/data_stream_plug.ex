@@ -4,7 +4,7 @@ defmodule AeMdwWeb.DataStreamPlug do
   alias AeMdw.Validate
   alias AeMdw.Node, as: AE
 
-  import AeMdw.Db.Util, only: [first_gen: 0, last_gen: 0]
+  import AeMdw.Db.RocksdbUtil, only: [first_gen: 0, last_gen: 0]
   import AeMdwWeb.Util, only: [concat: 2]
 
   @default_limit 10
