@@ -1,6 +1,7 @@
 defmodule AeMdw.Db.RocksdbUtil do
 
   import AeMdw.Util
+  import AeMdw.Sigil
 
   def read_block!(bi),
     do: read_block(bi) |> one!
@@ -9,27 +10,27 @@ defmodule AeMdw.Db.RocksdbUtil do
     do: read_block({kbi, -1})
 
   def read_block({_, _} = bi) do
-    {db, cf} = AeMdw.RocksdbManager.cf_handle!(:block) # FIXME: change table name back to ~t[block]
+    {db, cf} = AeMdw.RocksdbManager.cf_handle!(~t[block])
     get(db, cf, bi)
   end
 
   def first_gen(),
-    do: ensure_key!(:block, :first) |> (fn {{h,-1},_} -> h end).()
+    do: ensure_key!(~t[block], :first) |> (fn {{h,-1},_} -> h end).()
 
   def last_gen(),
-    do: ensure_key!(:block, :last) |> (fn {{h,-1},_} -> h end).()
+    do: ensure_key!(~t[block], :last) |> (fn {{h,-1},_} -> h end).()
 
-  def ensure_key!(cf, getter) do
-    case do_iter(cf, getter) do
+  def ensure_key!(tab, getter) do
+    case do_iter(tab, getter) do
       :"$end_of_table" ->
-        raise RuntimeError, message: "can't get #{getter} key for table #{cf}"
+        raise RuntimeError, message: "can't get #{getter} key for table #{tab}"
       k ->
         k
     end
   end
 
-  def first(cf), do: do_iter(cf, :first)
-  def last(cf),  do: do_iter(cf, :last)
+  def first(tab), do: do_iter(tab, :first)
+  def last(tab),  do: do_iter(tab, :last)
 
   def collect_keys(tab, acc, start_key, next_fn, progress_fn) do
     case next_fn.(tab, start_key) do
@@ -44,8 +45,8 @@ defmodule AeMdw.Db.RocksdbUtil do
     end
   end
 
-  def prev(cf, key) do
-    {db, cf_handle} = AeMdw.RocksdbManager.cf_handle!(cf)
+  def prev(tab, key) do
+    {db, cf_handle} = AeMdw.RocksdbManager.cf_handle!(tab)
     {:ok, iter} = :rocksdb.iterator(db, cf_handle, iterate_upper_bound: encode_key(key))
     res = case :rocksdb.iterator_move(iter, :last) do
             {:error, _} ->
@@ -58,8 +59,8 @@ defmodule AeMdw.Db.RocksdbUtil do
   end
 
   # FIXME: db connection pool
-  defp do_iter(cf, first_or_last) do
-    {db, block} = AeMdw.RocksdbManager.cf_handle!(cf)
+  defp do_iter(tab, first_or_last) do
+    {db, block} = AeMdw.RocksdbManager.cf_handle!(tab)
     {:ok, iter} = :rocksdb.iterator(db, block, [])
     res = case :rocksdb.iterator_move(iter, first_or_last) do
             {:error, _} ->

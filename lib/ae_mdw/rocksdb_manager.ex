@@ -1,10 +1,12 @@
 defmodule AeMdw.RocksdbManager do
+  import AeMdw.Sigil
+
   use GenServer
 
   @tab __MODULE__
 
-  def cf_handle!(cf) do
-    [{^cf, {db_handle, cf_handle}}] = :ets.lookup(@tab, cf)
+  def cf_handle!(tab) do
+    [{^tab, {db_handle, cf_handle}}] = :ets.lookup(@tab, tab)
     {db_handle, cf_handle}
   end
 
@@ -28,7 +30,7 @@ defmodule AeMdw.RocksdbManager do
     {:ok, db, [cf_default, cf_block]} =
       :rocksdb.open('data', opts, [{'default', []}, {'block', []}])
     :ets.insert(@tab, {:db, db})
-    :ets.insert(@tab, {:block, {db, cf_block}})
+    :ets.insert(@tab, {~t[block], {db, cf_block}})
   end
 
 end
