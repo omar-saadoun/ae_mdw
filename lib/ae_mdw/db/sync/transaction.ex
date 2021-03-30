@@ -4,6 +4,7 @@ defmodule AeMdw.Db.Sync.Transaction do
   alias AeMdw.Node, as: AE
   alias AeMdw.Db.Model
   alias AeMdw.Db.Sync
+  alias AeMdw.Db.RocksdbUtil
 
   require Model
 
@@ -34,10 +35,10 @@ defmodule AeMdw.Db.Sync.Transaction do
     tracker = Sync.progress_logger(&sync_generation/2, @log_freq, &log_msg/2)
     next_txi = from_height..to_height |> Enum.reduce(txi, tracker)
 
-    :mnesia.transaction(fn ->
-      [succ_kb] = :mnesia.read(Model.Block, {to_height + 1, -1})
-      :mnesia.write(Model.Block, Model.block(succ_kb, tx_index: next_txi), :write)
-    end)
+    [succ_kb] = RocksdbUtil.read_block({to_height + 1, -1})
+    succ_kb
+    |> Model.block(tx_index: next_txi)
+    |> RocksdbUtil.write_block()
 
     next_txi
   end
@@ -72,7 +73,7 @@ defmodule AeMdw.Db.Sync.Transaction do
         kb_header = :aec_blocks.to_key_header(key_block)
         kb_hash = :aec_headers.hash_header(kb_header) |> ok!
         kb_model = Model.block(index: {height, -1}, tx_index: kb_txi, hash: kb_hash)
-        :mnesia.write(Model.Block, kb_model, :write)
+        RocksdbUtil.write_block(kb_model)
 
         height >= AE.min_block_reward_height() &&
           Sync.IntTransfer.block_rewards(kb_header, kb_hash)
@@ -99,7 +100,7 @@ defmodule AeMdw.Db.Sync.Transaction do
     mb_hash = :aec_headers.hash_header(:aec_blocks.to_micro_header(mblock)) |> ok!
     mb_txi = (txi == 0 && -1) || txi
     mb_model = Model.block(index: {height, mbi}, tx_index: mb_txi, hash: mb_hash)
-    :mnesia.write(Model.Block, mb_model, :write)
+    RocksdbUtil.write_block(mb_model)
     mb_txs = :aec_blocks.txs(mblock)
     events = AeMdw.Contract.get_grouped_events(mblock)
     tx_ctx = {{height, mbi}, mb_time, events}
