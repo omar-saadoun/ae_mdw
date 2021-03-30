@@ -3,7 +3,7 @@ defmodule AeMdw.Db.Sync.Contract do
   alias AeMdw.Db
   alias AeMdw.Db.Contract, as: DBContract
   alias AeMdw.Db.Model
-  alias AeMdw.Db.Util, as: DBU
+  alias AeMdw.Db.RocksdbUtil, as: DBU
 
   require Model
 

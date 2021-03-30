@@ -115,11 +115,10 @@ defmodule AeMdw.Db.Sync.Transaction do
     hash = :aetx_sign.hash(signed_tx)
     type = mod.type()
     model_tx = Model.tx(index: txi, id: hash, block_index: block_index, time: mb_time)
-
     :ets.insert(:tx_sync_cache, {txi, model_tx})
-    :mnesia.write(Model.Tx, model_tx, :write)
-    :mnesia.write(Model.Type, Model.type(index: {type, txi}), :write)
-    :mnesia.write(Model.Time, Model.time(index: {mb_time, txi}), :write)
+    RocksdbUtil.write(Model.Tx, model_tx)
+    RocksdbUtil.write(Model.Type, Model.type(index: {type, txi}))
+    RocksdbUtil.write(Model.Time, Model.time(index: {mb_time, txi}))
     write_links(type, tx, signed_tx, txi, hash, block_index)
 
     with :contract_call_tx <- type do

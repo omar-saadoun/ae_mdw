@@ -27,10 +27,18 @@ defmodule AeMdw.RocksdbManager do
 
   defp open_rocksdb do
     opts = [create_if_missing: true, create_missing_column_families: true]
-    {:ok, db, [cf_default, cf_block]} =
-      :rocksdb.open('data', opts, [{'default', []}, {'block', []}])
+    {:ok, db, [default, block, tx, type, time]} =
+      :rocksdb.open('data', opts, [{'default', []},
+                                   {'block', []},
+                                   {'tx', []},
+                                   {'type', []},
+                                   {'time', []},
+                                  ])
     :ets.insert(@tab, {:db, db})
-    :ets.insert(@tab, {~t[block], {db, cf_block}})
+    :ets.insert(@tab, {~t[block], {db, block}})
+    :ets.insert(@tab, {~t[tx],    {db, tx}})
+    :ets.insert(@tab, {~t[type],  {db, type}})
+    :ets.insert(@tab, {~t[time],  {db, time}})
   end
 
 end

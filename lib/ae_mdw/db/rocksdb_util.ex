@@ -5,6 +5,7 @@ defmodule AeMdw.Db.RocksdbUtil do
 
   import AeMdw.Util
   import AeMdw.Sigil
+  import Record
 
   def read_block!(bi),
     do: read_block(bi) |> one!
@@ -17,11 +18,24 @@ defmodule AeMdw.Db.RocksdbUtil do
     get(db, cf, bi)
   end
 
+  def next_bi!({_kbi, _mbi} = bi),
+    do: {_, _} = next(Model.Block, bi)
+
+  def next_bi!(kbi) when is_integer(kbi),
+    do: next_bi!({kbi, -1})
+
   # FIXME: define keypos and schema to simplify this code
   def write_block(block) do
     {db, cf} = AeMdw.RocksdbManager.cf_handle!(~t[block])
     key = Model.block(block, :index)
     AeMdw.Db.RocksdbUtil.put(db, cf, key, block)
+  end
+
+  def write(tab, record) when is_record(record) do
+    # FIXME: assuming keypos is 1
+    key = elem(record, 1)
+    {db, cf} = AeMdw.RocksdbManager.cf_handle!(tab)
+    put(db, cf, key, record)
   end
 
   def first_gen(),
@@ -59,6 +73,20 @@ defmodule AeMdw.Db.RocksdbUtil do
     {db, cf_handle} = AeMdw.RocksdbManager.cf_handle!(tab)
     {:ok, iter} = :rocksdb.iterator(db, cf_handle, iterate_upper_bound: encode_key(key))
     res = case :rocksdb.iterator_move(iter, :last) do
+            {:error, _} ->
+              :"$end_of_table"
+            {:ok, key, _value} ->
+              decode_key(key) # FIXME: return key value pair
+          end
+    :rocksdb.iterator_close(iter)
+    res
+  end
+
+  def next(tab, key) do
+    {db, cf_handle} = AeMdw.RocksdbManager.cf_handle!(tab)
+    {:ok, iter} = :rocksdb.iterator(db, cf_handle, iterate_lower_bound: encode_key(key))
+    :rocksdb.iterator_move(iter, :first)
+    res = case :rocksdb.iterator_move(iter, :next) do
             {:error, _} ->
               :"$end_of_table"
             {:ok, key, _value} ->

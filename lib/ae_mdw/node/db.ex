@@ -3,7 +3,7 @@ defmodule AeMdw.Node.Db do
   require Model
 
   # we require that block index is in place
-  import AeMdw.Db.Util, only: [read_block!: 1]
+  import AeMdw.Db.RocksdbUtil, only: [read_block!: 1]
   import AeMdw.Util
 
   ##########
