@@ -1,5 +1,8 @@
 defmodule AeMdw.Db.RocksdbUtil do
 
+  alias AeMdw.Db.Model
+  require Model
+
   import AeMdw.Util
   import AeMdw.Sigil
 
@@ -12,6 +15,13 @@ defmodule AeMdw.Db.RocksdbUtil do
   def read_block({_, _} = bi) do
     {db, cf} = AeMdw.RocksdbManager.cf_handle!(~t[block])
     get(db, cf, bi)
+  end
+
+  # FIXME: define keypos and schema to simplify this code
+  def write_block(block) do
+    {db, cf} = AeMdw.RocksdbManager.cf_handle!(~t[block])
+    key = Model.block(block, :index)
+    AeMdw.Db.RocksdbUtil.put(db, cf, key, block)
   end
 
   def first_gen(),

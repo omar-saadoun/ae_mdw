@@ -41,9 +41,8 @@ defmodule AeMdw.Db.Sync.BlockIndex do
     ^height = :aec_headers.height(kh)
     :key = :aec_headers.type(kh)
     kb_model = Model.block(index: {height, -1}, hash: hash)
-    key = Model.block(kb_model, :index)
-    {db, cf_handle} = AeMdw.RocksdbManager.cf_handle!(table)
-    AeMdw.Db.RocksdbUtil.put(db, cf_handle, key, kb_model)
+    AeMdw.Db.RocksdbUtil.write_block(kb_model)
+#    :mnesia.write(table, kb_model, :write)
     :aec_headers.prev_key_hash(kh)
   end
 
