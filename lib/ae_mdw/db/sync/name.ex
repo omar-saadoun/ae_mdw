@@ -2,6 +2,7 @@ defmodule AeMdw.Db.Sync.Name do
   alias AeMdw.Node, as: AE
   alias AeMdw.Db.{Sync, Name, Model, Format}
   alias AeMdw.{Log, Validate}
+  alias AeMdw.Db.RocksdbUtil
 
   require Record
   require Model
@@ -172,12 +173,7 @@ defmodule AeMdw.Db.Sync.Name do
   ##########
 
   def expire(height) do
-    name_mspec =
-      Ex2ms.fun do
-        {:expiration, {^height, name}, :_} -> name
-      end
-
-    :mnesia.select(Model.ActiveNameExpiration, name_mspec)
+    RocksdbUtil.select_expired_names(height)
     |> Enum.each(&expire_name(height, &1))
 
     auction_mspec =

@@ -1,6 +1,8 @@
 defmodule AeMdw.RocksdbManager do
   import AeMdw.Sigil
 
+  alias AeMdw.Db.Model
+
   use GenServer
 
   @tab __MODULE__
@@ -27,18 +29,20 @@ defmodule AeMdw.RocksdbManager do
 
   defp open_rocksdb do
     opts = [create_if_missing: true, create_missing_column_families: true]
-    {:ok, db, [default, block, tx, type, time]} =
+    {:ok, db, [default, block, tx, type, time, active_name_expiration]} =
       :rocksdb.open('data', opts, [{'default', []},
                                    {'block', []},
                                    {'tx', []},
                                    {'type', []},
                                    {'time', []},
+                                   {'active_name_expiration', []},
                                   ])
     :ets.insert(@tab, {:db, db})
     :ets.insert(@tab, {~t[block], {db, block}})
     :ets.insert(@tab, {~t[tx],    {db, tx}})
     :ets.insert(@tab, {~t[type],  {db, type}})
     :ets.insert(@tab, {~t[time],  {db, time}})
+    :ets.insert(@tab, {Model.ActiveNameExpiration,  {db, active_name_expiration}})
   end
 
 end

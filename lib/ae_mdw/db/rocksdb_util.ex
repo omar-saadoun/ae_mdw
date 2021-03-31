@@ -128,4 +128,32 @@ defmodule AeMdw.Db.RocksdbUtil do
   def encode_value(val), do: :erlang.term_to_binary(val)
   def decode_value(bin), do: :erlang.binary_to_term(bin)
 
+  def select_expired_names(height) do
+    {db, cf} = AeMdw.RocksdbManager.cf_handle!(Model.ActiveNameExpiration)
+    {:ok, it} = :rocksdb.iterator(db, cf,
+      iterate_lower_bound: encode_key({height-1, -1}),
+      iterate_upper_bound: encode_key({height+1, -1}))
+    data = iter_take_all(it)
+    :rocksdb.iterator_close(it)
+    for {{^height, name}, _} <- data, do: name
+  end
+
+  def iter_take_all(it) do
+    case :rocksdb.iterator_move(it, :first) do
+      {:ok, key, value} ->
+        iter_take_all(it, [{decode_key(key), decode_value(value)}])
+      {:error, :invalid_iterator} ->
+        []
+    end
+  end
+
+  def iter_take_all(it, acc) do
+    case :rocksdb.iterator_move(it, :next) do
+      {:ok, key, value} ->
+        iter_take_all(it, [{decode_key(key), decode_value(value)} | acc])
+      {:error, :invalid_iterator} ->
+        acc
+    end
+  end
+
 end
