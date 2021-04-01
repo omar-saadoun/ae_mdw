@@ -2,6 +2,7 @@ defmodule AeMdw.Db.Name do
   alias AeMdw.Node, as: AE
   alias AeMdw.Db.{Model, Format}
   alias AeMdw.Validate
+  alias AeMdw.Db.RocksdbUtil
 
   require Model
   require Ex2ms
@@ -166,12 +167,12 @@ defmodule AeMdw.Db.Name do
   # for use inside mnesia TX - caches writes & deletes in the same TX
   def cache_through_write(table, record) do
     :ets.insert(:name_sync_cache, {{table, elem(record, 1)}, record})
-    :mnesia.write(table, record, :write)
+    RocksdbUtil.write(table, record)
   end
 
   def cache_through_delete(table, key) do
     :ets.delete(:name_sync_cache, {table, key})
-    :mnesia.delete(table, key, :write)
+    RocksdbUtil.delete(table, key)
   end
 
   def cache_through_delete_inactive(nil), do: nil

@@ -38,6 +38,11 @@ defmodule AeMdw.Db.RocksdbUtil do
     put(db, cf, key, record)
   end
 
+  def delete(tab, key) do
+    {db, cf} = AeMdw.RocksdbManager.cf_handle!(tab)
+    delete(db, cf, key)
+  end
+
   def first_gen(),
     do: ensure_key!(~t[block], :first) |> (fn {{h,-1},_} -> h end).()
 
@@ -123,6 +128,10 @@ defmodule AeMdw.Db.RocksdbUtil do
     end
   end
 
+  def delete(db, cf, key, opts \\ []) do
+    :rocksdb.delete(db, cf, encode_key(key), opts)
+  end
+
   def encode_key(key), do: :sext.encode(key)
   def decode_key(bin), do: :sext.decode(bin)
   def encode_value(val), do: :erlang.term_to_binary(val)
@@ -164,6 +173,15 @@ defmodule AeMdw.Db.RocksdbUtil do
       {:error, :invalid_iterator} ->
         acc
     end
+  end
+
+  # For debugging
+  def tab2list(tab) do
+    {db, cf} = AeMdw.RocksdbManager.cf_handle!(tab)
+    {:ok, it} = :rocksdb.iterator(db, cf, [])
+    data = iter_take_all(it)
+    :rocksdb.iterator_close(it)
+    data
   end
 
 end
