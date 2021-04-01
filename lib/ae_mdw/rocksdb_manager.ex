@@ -29,13 +29,16 @@ defmodule AeMdw.RocksdbManager do
 
   defp open_rocksdb do
     opts = [create_if_missing: true, create_missing_column_families: true]
-    {:ok, db, [default, block, tx, type, time, active_name_expiration]} =
+    {:ok, db, [default, block, tx, type, time,
+               active_name_expiration, auction_expiration,
+              ]} =
       :rocksdb.open('data', opts, [{'default', []},
                                    {'block', []},
                                    {'tx', []},
                                    {'type', []},
                                    {'time', []},
                                    {'active_name_expiration', []},
+                                   {'auction_expiration', []},
                                   ])
     :ets.insert(@tab, {:db, db})
     :ets.insert(@tab, {~t[block], {db, block}})
@@ -43,6 +46,7 @@ defmodule AeMdw.RocksdbManager do
     :ets.insert(@tab, {~t[type],  {db, type}})
     :ets.insert(@tab, {~t[time],  {db, time}})
     :ets.insert(@tab, {Model.ActiveNameExpiration,  {db, active_name_expiration}})
+    :ets.insert(@tab, {Model.AuctionExpiration,  {db, auction_expiration}})
   end
 
 end

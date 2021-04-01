@@ -138,6 +138,16 @@ defmodule AeMdw.Db.RocksdbUtil do
     for {{^height, name}, _} <- data, do: name
   end
 
+  def select_expired_auctions(height) do
+    {db, cf} = AeMdw.RocksdbManager.cf_handle!(Model.AuctionExpiration)
+    {:ok, it} = :rocksdb.iterator(db, cf,
+      iterate_lower_bound: encode_key({height-1, ""}),
+      iterate_upper_bound: encode_key({height+1, ""}))
+    data = iter_take_all(it)
+    :rocksdb.iterator_close(it)
+    for {{^height, name}, {:expiration, _, timeout}} <- data, do: {name, timeout}
+  end
+
   def iter_take_all(it) do
     case :rocksdb.iterator_move(it, :first) do
       {:ok, key, value} ->

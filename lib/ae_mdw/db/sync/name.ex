@@ -176,12 +176,7 @@ defmodule AeMdw.Db.Sync.Name do
     RocksdbUtil.select_expired_names(height)
     |> Enum.each(&expire_name(height, &1))
 
-    auction_mspec =
-      Ex2ms.fun do
-        {:expiration, {^height, name}, tm} -> {name, tm}
-      end
-
-    :mnesia.select(Model.AuctionExpiration, auction_mspec)
+    RocksdbUtil.select_expired_auctions(height)
     |> Enum.each(fn {name, timeout} -> expire_auction(height, name, timeout) end)
   end
 
