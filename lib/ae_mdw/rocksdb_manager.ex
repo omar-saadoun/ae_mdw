@@ -29,24 +29,15 @@ defmodule AeMdw.RocksdbManager do
 
   defp open_rocksdb do
     opts = [create_if_missing: true, create_missing_column_families: true]
-    {:ok, db, [default, block, tx, type, time,
-               active_name_expiration, auction_expiration,
-              ]} =
-      :rocksdb.open('data', opts, [{'default', []},
-                                   {'block', []},
-                                   {'tx', []},
-                                   {'type', []},
-                                   {'time', []},
-                                   {'active_name_expiration', []},
-                                   {'auction_expiration', []},
-                                  ])
+    tabs = Model.tables()
+    table_opts = Enum.map(tabs, fn tab -> {Atom.to_charlist(tab), []} end)
+    {:ok, db, [default | tab_handles]} =
+      :rocksdb.open('data', opts, [{'default', []}|table_opts])
     :ets.insert(@tab, {:db, db})
-    :ets.insert(@tab, {~t[block], {db, block}})
-    :ets.insert(@tab, {~t[tx],    {db, tx}})
-    :ets.insert(@tab, {~t[type],  {db, type}})
-    :ets.insert(@tab, {~t[time],  {db, time}})
-    :ets.insert(@tab, {Model.ActiveNameExpiration,  {db, active_name_expiration}})
-    :ets.insert(@tab, {Model.AuctionExpiration,  {db, auction_expiration}})
+
+    true = Enum.count(tabs) == Enum.count(tab_handles)
+    Enum.zip(tabs, tab_handles)
+    |> Enum.each(fn {tab,cf_handle} -> :ets.insert(@tab, {tab, {db, cf_handle}}) end)
   end
 
 end
