@@ -3,7 +3,7 @@ defmodule AeMdw.Db.Stream.Resource.Util do
 
   require Model
 
-  import AeMdw.Db.Util
+  import AeMdw.Db.RocksdbUtil
 
   ##########
 

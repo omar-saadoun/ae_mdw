@@ -4,7 +4,7 @@ defmodule AeMdw.Db.Stream.Name do
 
   require Model
 
-  import AeMdw.Db.Util
+  import AeMdw.Db.RocksdbUtil
 
   ##########
 

@@ -13,7 +13,8 @@ defmodule AeMdwWeb.NameController do
   require Model
 
   import AeMdwWeb.Util
-  import AeMdw.{Util, Db.Util}
+  import AeMdw.Util
+  import AeMdw.Db.RocksdbUtil
 
   ##########
 
