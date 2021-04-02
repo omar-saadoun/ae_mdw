@@ -58,10 +58,10 @@ defmodule AeMdw.Db.RocksdbUtil do
   end
 
   def first_gen(),
-    do: ensure_key!(~t[block], :first) |> (fn {{h,-1},_} -> h end).()
+    do: ensure_key!(~t[block], :first) |> (fn {h,-1} -> h end).()
 
   def last_gen(),
-    do: ensure_key!(~t[block], :last) |> (fn {{h,-1},_} -> h end).()
+    do: ensure_key!(~t[block], :last) |> (fn {h,-1} -> h end).()
 
   def first_txi(),
     do: ensure_key!(~t[tx], :first)
@@ -73,13 +73,10 @@ defmodule AeMdw.Db.RocksdbUtil do
     case do_iter(tab, getter) do
       :"$end_of_table" ->
         raise RuntimeError, message: "can't get #{getter} key for table #{tab}"
-      k ->
+      {k, _v} ->
         k
     end
   end
-
-  def first(tab), do: do_iter(tab, :first)
-  def last(tab),  do: do_iter(tab, :last)
 
   def collect_keys(tab, acc, start_key, next_fn, progress_fn) do
     case next_fn.(tab, start_key) do
@@ -119,6 +116,18 @@ defmodule AeMdw.Db.RocksdbUtil do
           end
     :rocksdb.iterator_close(iter)
     res
+  end
+
+  # TODO: maybe rename to first_key?
+  def first(tab), do: do_tab_key(tab, :first)
+  def last(tab),  do: do_tab_key(tab, :last)
+  defp do_tab_key(tab, getter) do
+    case do_iter(tab, getter) do
+      :"$end_of_table" ->
+        :"$end_of_table"
+      {k, _} ->
+        k
+    end
   end
 
   # FIXME: db connection pool

@@ -49,7 +49,7 @@ defmodule AeMdw.Db.Sync.BlockIndex do
   defp kbi(f) do
     case f.(~t[block]) do
       :"$end_of_table" -> nil
-      {{kbi, -1}, _value} -> kbi
+      {kbi, -1} -> kbi
     end
   end
 
