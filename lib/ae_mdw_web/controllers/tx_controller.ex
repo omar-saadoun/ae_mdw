@@ -12,7 +12,7 @@ defmodule AeMdwWeb.TxController do
   require Model
 
   import AeMdwWeb.Util
-  import AeMdw.Db.Util
+  import AeMdw.Db.RocksdbUtil
 
   ##########
 

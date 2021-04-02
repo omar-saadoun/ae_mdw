@@ -7,7 +7,8 @@ defmodule AeMdw.Db.Name do
   require Model
   require Ex2ms
 
-  import AeMdw.{Util, Db.Util}
+  import AeMdw.Util
+  import RocksdbUtil
 
   ##########
 

@@ -7,6 +7,20 @@ defmodule AeMdw.Db.RocksdbUtil do
   import AeMdw.Sigil
   import Record
 
+  def read!(tab, key), do: read(tab, key) |> one!
+
+  def read(tab, key) do
+    {db, cf} = AeMdw.RocksdbManager.cf_handle!(tab)
+    get(db, cf, key)
+  end
+
+  def read_tx!(txi), do: read_tx(txi) |> one!
+
+  def read_tx(txi) do
+    {db, cf} = AeMdw.RocksdbManager.cf_handle!(~t[tx])
+    get(db, cf, txi)
+  end
+
   def read_block!(bi),
     do: read_block(bi) |> one!
 
@@ -48,6 +62,12 @@ defmodule AeMdw.Db.RocksdbUtil do
 
   def last_gen(),
     do: ensure_key!(~t[block], :last) |> (fn {{h,-1},_} -> h end).()
+
+  def first_txi(),
+    do: ensure_key!(~t[tx], :first)
+
+  def last_txi(),
+    do: ensure_key!(~t[tx], :last)
 
   def ensure_key!(tab, getter) do
     case do_iter(tab, getter) do
