@@ -8,7 +8,9 @@ defmodule AeMdw.Db.Sync.Transaction do
 
   require Model
 
-  import AeMdw.{Util, Db.Util}
+  import AeMdw.Util
+  import AeMdw.Db.Util, only: [current_height: 0]
+  import AeMdw.Db.RocksdbUtil
 
   @log_freq 1000
   @sync_cache_cleanup_freq 150_000
@@ -192,14 +194,14 @@ defmodule AeMdw.Db.Sync.Transaction do
   def write_origin(tx_type, pubkey, txi, tx_hash) do
     m_origin = Model.origin(index: {tx_type, pubkey, txi}, tx_id: tx_hash)
     m_rev_origin = Model.rev_origin(index: {txi, tx_type, pubkey})
-    :mnesia.write(Model.Origin, m_origin, :write)
-    :mnesia.write(Model.RevOrigin, m_rev_origin, :write)
+    RocksdbUtil.write(Model.Origin, m_origin)
+    RocksdbUtil.write(Model.RevOrigin, m_rev_origin)
     write_field(tx_type, nil, pubkey, txi)
   end
 
   def write_field(tx_type, pos, pubkey, txi) do
     m_field = Model.field(index: {tx_type, pos, pubkey, txi})
-    :mnesia.write(Model.Field, m_field, :write)
+    RocksdbUtil.write(Model.Field, m_field)
     Model.incr_count({tx_type, pos, pubkey})
   end
 

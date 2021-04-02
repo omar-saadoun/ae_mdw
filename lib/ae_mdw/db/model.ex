@@ -1,4 +1,6 @@
 defmodule AeMdw.Db.Model do
+  alias AeMdw.Db.RocksdbUtil
+
   require Record
   require Ex2ms
 
@@ -634,11 +636,11 @@ defmodule AeMdw.Db.Model do
   def write_count(model, delta) do
     total = id_count(model, :count)
     model = id_count(model, count: total + delta)
-    :mnesia.write(AeMdw.Db.Model.IdCount, model, :write)
+    RocksdbUtil.write(AeMdw.Db.Model.IdCount, model)
   end
 
   def update_count({_, _, _} = field_key, delta, empty_fn \\ fn -> :nop end) do
-    case :mnesia.read(AeMdw.Db.Model.IdCount, field_key, :write) do
+    case RocksdbUtil.read(AeMdw.Db.Model.IdCount, field_key) do
       [] -> empty_fn.()
       [model] -> write_count(model, delta)
     end
