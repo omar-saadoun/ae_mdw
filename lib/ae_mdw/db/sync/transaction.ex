@@ -9,7 +9,6 @@ defmodule AeMdw.Db.Sync.Transaction do
   require Model
 
   import AeMdw.Util
-  import AeMdw.Db.Util, only: [current_height: 0]
   import AeMdw.Db.RocksdbUtil
 
   @log_freq 1000

@@ -13,7 +13,6 @@ defmodule AeMdwWeb.BlockController do
 
   import AeMdwWeb.Util
   import AeMdw.Util
-  import AeMdw.Db.Util, only: [prev_block_type: 1]
   import AeMdw.Db.RocksdbUtil
 
   @tab __MODULE__

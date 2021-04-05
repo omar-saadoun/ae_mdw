@@ -3,7 +3,7 @@ defmodule AeMdw.Db.Stream.Mapper do
 
   require Model
 
-  import AeMdw.{Util, Db.Util}
+  import AeMdw.{Util, Db.RocksdbUtil}
 
   @formats [:json, :raw, :txi]
   @tx_tables [Model.Block, Model.Tx, Model.Type, Model.Time, Model.Field]

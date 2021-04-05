@@ -5,7 +5,7 @@ defmodule AeMdw.Db.Stream.Resource.Or do
 
   require Model
 
-  import AeMdw.Db.Util
+  import AeMdw.Db.RocksdbUtil
   import AeMdw.Db.Stream.Resource.Util
 
   ##########

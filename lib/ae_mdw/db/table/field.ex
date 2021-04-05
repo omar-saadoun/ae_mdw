@@ -1,7 +1,7 @@
 defmodule AeMdw.Db.Stream.Field do
   alias AeMdw.Db.Model
 
-  import AeMdw.Db.Util
+  import AeMdw.Db.RocksdbUtil
 
   @tab Model.Field
 

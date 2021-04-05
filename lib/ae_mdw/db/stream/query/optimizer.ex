@@ -3,7 +3,7 @@ defmodule AeMdw.Db.Stream.Query.Optimizer do
 
   require Model
 
-  import AeMdw.Db.Util
+  import AeMdw.Db.RocksdbUtil
 
   ##########
 

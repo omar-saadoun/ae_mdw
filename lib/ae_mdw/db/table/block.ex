@@ -1,6 +1,6 @@
 defmodule AeMdw.Db.Stream.Block do
   alias AeMdw.Db.Model
-  import AeMdw.Db.Util
+  import AeMdw.Db.RocksdbUtil
 
   @tab Model.Block
 

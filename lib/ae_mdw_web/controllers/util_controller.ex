@@ -43,7 +43,7 @@ defmodule AeMdwWeb.UtilController do
   end
 
   def status(conn, _params),
-    do: json(conn, AeMdw.Db.Util.status())
+    do: json(conn, AeMdw.DB.RocksdbUtil.status())
 
   def no_route(conn, _params),
     do: conn |> AeMdwWeb.Util.send_error(404, "no such route")

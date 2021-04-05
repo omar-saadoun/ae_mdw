@@ -7,7 +7,7 @@ defmodule AeMdw.Db.Format do
   require Model
 
   import AeMdw.Db.Name, only: [plain_name!: 1]
-  import AeMdw.{Util, Db.Util}
+  import AeMdw.{Util, Db.RocksdbUtil}
 
   ##########
 

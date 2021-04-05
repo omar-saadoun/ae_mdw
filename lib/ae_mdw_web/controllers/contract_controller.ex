@@ -10,7 +10,7 @@ defmodule AeMdwWeb.ContractController do
   require Model
 
   import AeMdwWeb.Util
-  import AeMdw.{Util, Db.Util}
+  import AeMdw.{Util, Db.RocksdbUtil}
 
   ##########
 

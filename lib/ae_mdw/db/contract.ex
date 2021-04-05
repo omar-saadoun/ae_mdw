@@ -9,7 +9,7 @@ defmodule AeMdw.Db.Contract do
   require Log
 
   import AeMdw.Util, only: [compose: 2]
-  import AeMdw.Db.Util
+  import AeMdw.Db.RocksdbUtil
 
   ##########
 

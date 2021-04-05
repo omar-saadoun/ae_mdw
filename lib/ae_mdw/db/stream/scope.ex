@@ -4,7 +4,7 @@ defmodule AeMdw.Db.Stream.Scope do
   alias AeMdw.Error
   require Model
 
-  import AeMdw.{Sigil, Util, Db.Util}
+  import AeMdw.{Sigil, Util, Db.RocksdbUtil}
 
   # second
   @time_scope_max_diff_msecs 1000

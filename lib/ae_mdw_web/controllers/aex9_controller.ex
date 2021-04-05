@@ -70,14 +70,10 @@ defmodule AeMdwWeb.Aex9Controller do
         )
 
   def balances(conn, %{"height" => height, "account_id" => account_id}),
-    do:
-      handle_input(
-        conn,
-        fn ->
-          account_pk = Validate.id!(account_id, [:account_pubkey])
-
-          txi =
-            AeMdw.Db.Util.block_txi(Validate.nonneg_int!(height)) ||
+    do: handle_input(conn,
+          fn ->
+            account_pk = Validate.id!(account_id, [:account_pubkey])
+            txi = AeMdw.Db.RocksdbUtil.block_txi(Validate.nonneg_int!(height)) ||
               raise ErrInput.BlockIndex, value: height
 
           account_balances_reply(conn, account_pk, txi)
@@ -85,29 +81,20 @@ defmodule AeMdwWeb.Aex9Controller do
       )
 
   def balances(conn, %{"blockhash" => hash, "account_id" => account_id}),
-    do:
-      handle_input(
-        conn,
-        fn ->
-          account_pk = Validate.id!(account_id, [:account_pubkey])
-
-          bi =
-            AeMdw.Db.Util.block_hash_to_bi(Validate.id!(hash)) ||
+    do: handle_input(conn,
+          fn ->
+            account_pk = Validate.id!(account_id, [:account_pubkey])
+            bi = AeMdw.Db.RocksdbUtil.block_hash_to_bi(Validate.id!(hash)) ||
               raise ErrInput.Id, value: hash
-
-          account_balances_reply(conn, account_pk, AeMdw.Db.Util.block_txi(bi))
-        end
-      )
+            account_balances_reply(conn, account_pk, AeMdw.Db.RocksdbUtil.block_txi(bi))
+          end)
 
   def balances(conn, %{"account_id" => account_id}),
-    do:
-      handle_input(
-        conn,
-        fn ->
-          account_pk = Validate.id!(account_id, [:account_pubkey])
-          account_balances_reply(conn, account_pk, AeMdw.Db.Util.last_txi())
-        end
-      )
+    do: handle_input(conn,
+          fn ->
+            account_pk = Validate.id!(account_id, [:account_pubkey])
+            account_balances_reply(conn, account_pk, AeMdw.Db.RocksdbUtil.last_txi())
+          end)
 
   def balances(conn, %{"contract_id" => contract_id}),
     do: handle_input(conn, fn -> balances_reply(conn, ensure_aex9_contract_pk!(contract_id)) end)
@@ -308,8 +295,8 @@ defmodule AeMdwWeb.Aex9Controller do
     end
   end
 
-  defp balance_to_map({amount, txi, contract_pk}) do
-    tx_idx = AeMdw.Db.Util.read_tx!(txi)
+  def balance_to_map({amount, txi, contract_pk}) do
+    tx_idx = AeMdw.Db.RocksdbUtil.read_tx!(txi)
     info = Format.to_raw_map(tx_idx)
 
     %{

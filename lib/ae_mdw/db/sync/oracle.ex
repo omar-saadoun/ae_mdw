@@ -16,7 +16,7 @@ defmodule AeMdw.Db.Sync.Oracle do
       cache_through_delete_inactive: 1
     ]
 
-  import AeMdw.{Util, Db.Util}
+  import AeMdw.{Util, Db.RocksdbUtil}
 
   ##########
 
@@ -242,7 +242,7 @@ defmodule AeMdw.Db.Sync.Oracle do
   # def quick_sync() do
   #   alias AeMdw.Node, as: AE
   #   alias AeMdw.Db.Stream, as: DBS
-  #   import AeMdw.Db.Util
+  #   import AeMdw.Db.RocksdbUtil
 
   #   nil = Process.whereis(AeMdw.Db.Sync.Supervisor)
   #   range = {1, last_gen() - 1}

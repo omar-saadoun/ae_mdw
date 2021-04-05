@@ -4,7 +4,7 @@ defmodule AeMdw.Db.Origin do
 
   require Model
 
-  import AeMdw.{Util, Db.Util}
+  import AeMdw.{Util, Db.RocksdbUtil}
 
   ##########
 

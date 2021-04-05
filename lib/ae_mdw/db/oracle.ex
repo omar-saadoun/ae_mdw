@@ -5,7 +5,7 @@ defmodule AeMdw.Db.Oracle do
   require Model
   require Ex2ms
 
-  import AeMdw.{Util, Db.Util}
+  import AeMdw.{Util, Db.RocksdbUtil}
 
   ##########
 

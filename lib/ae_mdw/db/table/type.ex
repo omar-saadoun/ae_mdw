@@ -3,7 +3,7 @@ defmodule AeMdw.Db.Stream.Type do
   alias AeMdw.Validate
   alias AeMdw.Db.Model
 
-  import AeMdw.Db.Util
+  import AeMdw.Db.RocksdbUtil
 
   @tab Model.Type
 

@@ -7,6 +7,20 @@ defmodule AeMdw.Db.RocksdbUtil do
   import AeMdw.Sigil
   import Record
 
+  alias AeMdw.Db.AeUtil
+
+  defdelegate current_height(), to: AeUtil
+  defdelegate msecs(msecs), to: AeUtil
+  defdelegate date_time(dt), to: AeUtil
+  defdelegate prev_block_type(header), to: AeUtil
+  defdelegate proto_vsn(height), to: AeUtil
+  defdelegate block_hash_to_bi(block_hash), to: AeUtil
+  defdelegate status(), to: AeUtil
+  defdelegate tx_val(tx_rec, field), to: AeUtil
+  defdelegate tx_val(tx_rec, tx_type, field), to: AeUtil
+  defdelegate gen_collect(table, init_key_probe, key_tester, progress, new, add, return), to: AeUtil
+
+
   def read!(tab, key), do: read(tab, key) |> one!
 
   def read(tab, key) do
@@ -32,11 +46,25 @@ defmodule AeMdw.Db.RocksdbUtil do
     get(db, cf, bi)
   end
 
+  def block_txi(bi), do: map_one_nil(read_block(bi), &Model.block(&1, :tx_index))
+
   def next_bi!({_kbi, _mbi} = bi),
     do: {_, _} = next(Model.Block, bi)
 
   def next_bi!(kbi) when is_integer(kbi),
     do: next_bi!({kbi, -1})
+
+  def do_writes(tab_xs),
+    do: do_writes(tab_xs, &write(&1, &2))
+
+  def do_writes(tab_xs, db_write) when is_function(db_write, 2),
+    do: Enum.each(tab_xs, fn {tab, xs} -> Enum.each(xs, &db_write.(tab, &1)) end)
+
+  def do_dels(tab_keys),
+    do: do_dels(tab_keys, &delete(&1, &2))
+
+  def do_dels(tab_keys, db_delete) when is_function(db_delete, 2),
+    do: Enum.each(tab_keys, fn {tab, ks} -> Enum.each(ks, &db_delete.(tab, &1)) end)
 
   # FIXME: define keypos and schema to simplify this code
   def write_block(block) do
@@ -68,6 +96,12 @@ defmodule AeMdw.Db.RocksdbUtil do
 
   def last_txi(),
     do: ensure_key!(~t[tx], :last)
+
+  def first_time(),
+    do: ensure_key!(~t[time], :first) |> (fn {t, _txi} -> t end).()
+
+  def last_time(),
+    do: ensure_key!(~t[time], :last) |> (fn {t, _txi} -> t end).()
 
   def ensure_key!(tab, getter) do
     case do_iter(tab, getter) do
@@ -204,8 +238,10 @@ defmodule AeMdw.Db.RocksdbUtil do
     end
   end
 
-  # For debugging
-  def tab2list(tab) do
+  # FIXME, transaction?
+  def all(tab), do: dirty_all(tab)
+
+  def dirty_all(tab) do
     {db, cf} = AeMdw.RocksdbManager.cf_handle!(tab)
     {:ok, it} = :rocksdb.iterator(db, cf, [])
     data = iter_take_all(it)
