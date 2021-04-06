@@ -1,6 +1,7 @@
 defmodule AeMdw.Db.Sync.Oracle do
   alias :aeser_api_encoder, as: Enc
   alias AeMdw.Db.{Model, Format}
+  alias AeMdw.Db.RocksdbUtil
   alias AeMdw.Log
 
   require Record
@@ -69,12 +70,7 @@ defmodule AeMdw.Db.Sync.Oracle do
   ##########
 
   def expire(height) do
-    oracle_mspec =
-      Ex2ms.fun do
-        {:expiration, {^height, pubkey}, :_} -> pubkey
-      end
-
-    :mnesia.select(Model.ActiveOracleExpiration, oracle_mspec)
+    RocksdbUtil.select_expired_oracles(height)
     |> Enum.each(&expire_oracle(height, &1))
   end
 
@@ -251,7 +247,7 @@ defmodule AeMdw.Db.Sync.Oracle do
   #     |> Enum.to_list
 
   #   run_range(range, raw_txs,
-  #     fn h -> :mnesia.transaction(fn -> expire(h) end) end,
+  #     fn h -> RocksdbUtil.transaction(fn -> expire(h) end) end,
   #     fn %{block_height: kbi, micro_index: mbi, hash: hash, tx_index: txi,
   #           tx: %{oracle_id: oracle_id}} ->
   #       {_block_hash, type, _signed_tx, tx_rec} = AE.Db.get_tx_data(hash)
@@ -261,7 +257,7 @@ defmodule AeMdw.Db.Sync.Oracle do
   #                :oracle_register_tx -> &register/4
   #                :oracle_extend_tx -> &extend/4
   #              end
-  #       :mnesia.transaction(fn -> call.(pk, tx_rec, txi, bi) end)
+  #       RocksdbUtil.transaction(fn -> call.(pk, tx_rec, txi, bi) end)
   #     end)
   # end
 
@@ -291,6 +287,6 @@ defmodule AeMdw.Db.Sync.Oracle do
       Model.ActiveOracleExpiration,
       Model.InactiveOracleExpiration
     ]
-    |> Enum.each(&:mnesia.clear_table/1)
+    |> Enum.each(&RocksdbUtil.clear_table/1)
   end
 end

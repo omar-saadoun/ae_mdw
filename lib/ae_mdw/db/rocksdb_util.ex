@@ -220,6 +220,16 @@ defmodule AeMdw.Db.RocksdbUtil do
     for {{^height, name}, {:expiration, _, timeout}} <- data, do: {name, timeout}
   end
 
+  def select_expired_oracles(height) do
+    {db, cf} = AeMdw.RocksdbManager.cf_handle!(Model.ActiveOracleExpiration)
+    {:ok, it} = :rocksdb.iterator(db, cf,
+      iterate_lower_bound: encode_key({height-1, -1}),
+      iterate_upper_bound: encode_key({height+1, -1}))
+    data = iter_take_all(it)
+    :rocksdb.iterator_close(it)
+    for {{^height, pubkey}, _} <- data, do: pubkey
+  end
+
   def iter_take_all(it) do
     case :rocksdb.iterator_move(it, :first) do
       {:ok, key, value} ->
@@ -247,6 +257,24 @@ defmodule AeMdw.Db.RocksdbUtil do
     data = iter_take_all(it)
     :rocksdb.iterator_close(it)
     data
+  end
+
+  # FIXME
+  def transaction(f) do
+    result = f.()
+    {:atomic, result}
+  end
+
+  def dirty_read(tab, key) do
+    read(tab, key)
+  end
+
+  def dirty_next(tab, key), do: next(tab, key)
+  def dirty_prev(tab, key), do: prev(tab, key)
+  def dirty_first(tab), do: first(tab)
+  def dirty_last(tab), do: last(tab)
+
+  def clear_table(tab) do
   end
 
 end

@@ -17,6 +17,10 @@ defmodule AeMdw.RocksdbManager do
     db_handle
   end
 
+  def clear_table(tab) do
+    GenServer.call(__MODULE__, {:clear_table, tab})
+  end
+
   def start_link(_),
     do: GenServer.start_link(__MODULE__, [], name: __MODULE__)
 
@@ -38,6 +42,15 @@ defmodule AeMdw.RocksdbManager do
     true = Enum.count(tabs) == Enum.count(tab_handles)
     Enum.zip(tabs, tab_handles)
     |> Enum.each(fn {tab,cf_handle} -> :ets.insert(@tab, {tab, {db, cf_handle}}) end)
+  end
+
+  def handle_call({:clear_table, tab}, _from, state) do
+    {db, cf} = cf_handle!(tab)
+    :ok = :rocksdb.drop_column_family(db, cf)
+    name = Atom.to_charlist(tab)
+    {:ok, new_cf} = :rocksdb.create_column_family(db, name, [])
+    true = result = :ets.insert(@tab, {tab, {db, new_cf}})
+    {:reply, :ok, state}
   end
 
 end

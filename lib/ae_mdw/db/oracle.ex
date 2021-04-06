@@ -1,6 +1,7 @@
 defmodule AeMdw.Db.Oracle do
   alias AeMdw.Node, as: AE
   alias AeMdw.Db.Model
+  alias AeMdw.Db.RocksdbUtil
 
   require Model
   require Ex2ms
@@ -51,12 +52,12 @@ defmodule AeMdw.Db.Oracle do
   # for use inside mnesia TX - caches writes & deletes in the same TX
   def cache_through_write(table, record) do
     :ets.insert(:oracle_sync_cache, {{table, elem(record, 1)}, record})
-    :mnesia.write(table, record, :write)
+    RocksdbUtil.write(table, record)
   end
 
   def cache_through_delete(table, key) do
     :ets.delete(:oracle_sync_cache, {table, key})
-    :mnesia.delete(table, key, :write)
+    RocksdbUtil.delete(table, key)
   end
 
   def cache_through_delete_inactive(nil), do: nil

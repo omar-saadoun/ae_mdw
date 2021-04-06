@@ -1,8 +1,8 @@
 defmodule AeMdw.Db.Contract do
   alias AeMdw.Node, as: AE
   alias AeMdw.Db.Model
-  alias AeMdw.Db.Origin
-  alias AeMdw.{Log, Validate}
+  alias AeMdw.Log
+  alias AeMdw.Db.RocksdbUtil
 
   require Record
   require Model
@@ -18,10 +18,10 @@ defmodule AeMdw.Db.Contract do
     m_contract_sym = Model.aex9_contract_symbol(index: {symbol, name, txi, decimals})
     m_rev_contract = Model.rev_aex9_contract(index: {txi, name, symbol, decimals})
     m_contract_pk = Model.aex9_contract_pubkey(index: contract_pk, txi: txi)
-    :mnesia.write(Model.Aex9Contract, m_contract, :write)
-    :mnesia.write(Model.Aex9ContractSymbol, m_contract_sym, :write)
-    :mnesia.write(Model.RevAex9Contract, m_rev_contract, :write)
-    :mnesia.write(Model.Aex9ContractPubkey, m_contract_pk, :write)
+    RocksdbUtil.write(Model.Aex9Contract, m_contract)
+    RocksdbUtil.write(Model.Aex9ContractSymbol, m_contract_sym)
+    RocksdbUtil.write(Model.RevAex9Contract, m_rev_contract)
+    RocksdbUtil.write(Model.Aex9ContractPubkey, m_contract_pk)
 
     aex9_presence_cache_write({{contract_pk, txi, -1}, owner_pk, -1})
   end
@@ -29,8 +29,8 @@ defmodule AeMdw.Db.Contract do
   def aex9_write_presence(contract_pk, txi, pubkey) do
     m_acc_presence = Model.aex9_account_presence(index: {pubkey, txi, contract_pk})
     m_idx_presence = Model.idx_aex9_account_presence(index: {txi, pubkey, contract_pk})
-    :mnesia.write(Model.Aex9AccountPresence, m_acc_presence, :write)
-    :mnesia.write(Model.IdxAex9AccountPresence, m_idx_presence, :write)
+    RocksdbUtil.write(Model.Aex9AccountPresence, m_acc_presence)
+    RocksdbUtil.write(Model.IdxAex9AccountPresence, m_idx_presence)
   end
 
   def call_write(create_txi, txi, %{function: fname, arguments: args, result: %{error: [err]}}),
@@ -55,7 +55,7 @@ defmodule AeMdw.Db.Contract do
         return: return
       )
 
-    :mnesia.write(Model.ContractCall, m_call, :write)
+    RocksdbUtil.write(Model.ContractCall, m_call)
   end
 
   def logs_write(create_txi, txi, call_rec) do
@@ -93,10 +93,10 @@ defmodule AeMdw.Db.Contract do
       m_data_log = Model.data_contract_log(index: {data, txi, create_txi, evt_hash, i})
       m_evt_log = Model.evt_contract_log(index: {evt_hash, txi, create_txi, i})
       m_idx_log = Model.idx_contract_log(index: {txi, create_txi, evt_hash, i})
-      :mnesia.write(Model.ContractLog, m_log, :write)
-      :mnesia.write(Model.DataContractLog, m_data_log, :write)
-      :mnesia.write(Model.EvtContractLog, m_evt_log, :write)
-      :mnesia.write(Model.IdxContractLog, m_idx_log, :write)
+      RocksdbUtil.write(Model.ContractLog, m_log)
+      RocksdbUtil.write(Model.DataContractLog, m_data_log)
+      RocksdbUtil.write(Model.EvtContractLog, m_evt_log)
+      RocksdbUtil.write(Model.IdxContractLog, m_idx_log)
     end)
 
     case AeMdw.Contract.is_aex9?(contract_pk) do
@@ -110,9 +110,9 @@ defmodule AeMdw.Db.Contract do
             m_transfer = Model.aex9_transfer(index: {from_pk, to_pk, amount, txi, i})
             m_rev_transfer = Model.rev_aex9_transfer(index: {to_pk, from_pk, amount, txi, i})
             m_idx_transfer = Model.idx_aex9_transfer(index: {txi, i, from_pk, to_pk, amount})
-            :mnesia.write(Model.Aex9Transfer, m_transfer, :write)
-            :mnesia.write(Model.RevAex9Transfer, m_rev_transfer, :write)
-            :mnesia.write(Model.IdxAex9Transfer, m_idx_transfer, :write)
+            RocksdbUtil.write(Model.Aex9Transfer, m_transfer)
+            RocksdbUtil.write(Model.RevAex9Transfer, m_rev_transfer)
+            RocksdbUtil.write(Model.IdxAex9Transfer, m_idx_transfer)
             aex9_write_presence(contract_pk, txi, to_pk)
 
             aex9_presence_cache_write({{contract_pk, txi, i}, {from_pk, to_pk}, amount})
@@ -222,12 +222,12 @@ defmodule AeMdw.Db.Contract do
   end
 
   # def mig1({create_txi, call_txi, log_idx, evt_hash} = log_key) do
-  #   [m_log] = :mnesia.read(Model.ContractLog, log_key)
+  #   [m_log] = RocksdbUtil.read(Model.ContractLog, log_key)
   #   data = Model.contract_log(m_log, :data)
   #   m_data_log = Model.data_contract_log(
   #     index: {data, create_txi, evt_hash, call_txi, log_idx}
   #   )
-  #   :mnesia.write(Model.DataContractLog, m_data_log, :write)
+  #   RocksdbUtil.write(Model.DataContractLog, m_data_log, :write)
   # end
 
   # def trans1(rev_ct_keys) do
@@ -256,16 +256,14 @@ defmodule AeMdw.Db.Contract do
 
     m_grp_call = Model.grp_int_contract_call(index: {create_txi, call_txi, local_idx})
     m_fname_call = Model.fname_int_contract_call(index: {fname, call_txi, local_idx})
-
-    m_fname_grp_call =
-      Model.fname_grp_int_contract_call(index: {fname, create_txi, call_txi, local_idx})
-
+    m_fname_grp_call = Model.fname_grp_int_contract_call(
+      index: {fname, create_txi, call_txi, local_idx}
+    )
     {tx_type, raw_tx} = :aetx.specialize_type(tx)
-
-    :mnesia.write(Model.IntContractCall, m_call, :write)
-    :mnesia.write(Model.GrpIntContractCall, m_grp_call, :write)
-    :mnesia.write(Model.FnameIntContractCall, m_fname_call, :write)
-    :mnesia.write(Model.FnameGrpIntContractCall, m_fname_grp_call, :write)
+    RocksdbUtil.write(Model.IntContractCall, m_call)
+    RocksdbUtil.write(Model.GrpIntContractCall, m_grp_call)
+    RocksdbUtil.write(Model.FnameIntContractCall, m_fname_call)
+    RocksdbUtil.write(Model.FnameGrpIntContractCall, m_fname_grp_call)
 
     for {_, pos} <- AE.tx_ids(tx_type) do
       pk = Validate.id!(elem(raw_tx, pos))

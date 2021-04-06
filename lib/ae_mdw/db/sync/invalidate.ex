@@ -2,7 +2,8 @@ defmodule AeMdw.Db.Sync.Invalidate do
   alias AeMdw.Node, as: AE
   alias AeMdw.Db.Stream, as: DBS
   alias AeMdw.Db.{Model, Sync, Format}
-  alias AeMdw.{Log, Validate}
+  alias AeMdw.Db.RocksdbUtil
+  alias AeMdw.Log
 
   require Model
 
@@ -35,7 +36,7 @@ defmodule AeMdw.Db.Sync.Invalidate do
 
         tab_keys = Map.merge(bi_keys, tx_keys)
 
-        :mnesia.transaction(fn ->
+        RocksdbUtil.transaction(fn ->
           {name_dels, name_writes} = Sync.Name.invalidate(fork_height - 1)
           {oracle_dels, oracle_writes} = Sync.Oracle.invalidate(fork_height - 1)
 
@@ -76,7 +77,7 @@ defmodule AeMdw.Db.Sync.Invalidate do
   def block_keys_range({_, _} = from_bi),
     do: %{
       Model.Block =>
-        collect_keys(Model.Block, [from_bi], from_bi, &:mnesia.next/2, &{:cont, [&1 | &2]})
+        collect_keys(Model.Block, [from_bi], from_bi, &RocksdbUtil.next/2, &{:cont, [&1 | &2]})
     }
 
   def stat_key_dels(from_kbi) do
@@ -183,7 +184,7 @@ defmodule AeMdw.Db.Sync.Invalidate do
   end
 
   def origin_keys_range(from_txi, to_txi) do
-    case :mnesia.dirty_next(Model.RevOrigin, {from_txi, :_, nil}) do
+    case RocksdbUtil.dirty_next(Model.RevOrigin, {from_txi, :_, nil}) do
       :"$end_of_table" ->
         {[], []}
 
@@ -204,7 +205,7 @@ defmodule AeMdw.Db.Sync.Invalidate do
 
   def aex9_key_dels(from_txi) do
     {aex9_keys, aex9_sym_keys, aex9_rev_keys} =
-      case :mnesia.dirty_next(Model.RevAex9Contract, {from_txi, nil, nil, nil}) do
+      case RocksdbUtil.dirty_next(Model.RevAex9Contract, {from_txi, nil, nil, nil}) do
         :"$end_of_table" ->
           {[], [], []}
 
@@ -233,7 +234,7 @@ defmodule AeMdw.Db.Sync.Invalidate do
 
   def aex9_transfer_key_dels(from_txi) do
     {aex9_tr_keys, aex9_rev_tr_keys, aex9_idx_tr_keys} =
-      case :mnesia.dirty_next(Model.IdxAex9Transfer, {from_txi, 0, nil, nil, 0}) do
+      case RocksdbUtil.dirty_next(Model.IdxAex9Transfer, {from_txi, 0, nil, nil, 0}) do
         :"$end_of_table" ->
           {[], [], []}
 
@@ -263,7 +264,7 @@ defmodule AeMdw.Db.Sync.Invalidate do
 
   def aex9_account_presence_key_dels(from_txi) do
     {aex9_presence_keys, idx_aex9_presence_keys} =
-      case :mnesia.dirty_next(Model.IdxAex9AccountPresence, {from_txi, nil, nil}) do
+      case RocksdbUtil.dirty_next(Model.IdxAex9AccountPresence, {from_txi, nil, nil}) do
         :"$end_of_table" ->
           {[], []}
 
@@ -341,7 +342,7 @@ defmodule AeMdw.Db.Sync.Invalidate do
 
   def contract_log_key_dels(from_txi) do
     {log_keys, data_log_keys, evt_log_keys, idx_log_keys} =
-      case :mnesia.dirty_next(Model.IdxContractLog, {from_txi, 0, nil, 0}) do
+      case RocksdbUtil.dirty_next(Model.IdxContractLog, {from_txi, 0, nil, 0}) do
         :"$end_of_table" ->
           {[], [], [], []}
 
@@ -379,7 +380,7 @@ defmodule AeMdw.Db.Sync.Invalidate do
 
   def contract_call_key_dels(from_txi) do
     contract_call_keys =
-      case :mnesia.dirty_next(Model.ContractCall, {from_txi, 0}) do
+      case RocksdbUtil.dirty_next(Model.ContractCall, {from_txi, 0}) do
         :"$end_of_table" ->
           []
 
@@ -399,7 +400,7 @@ defmodule AeMdw.Db.Sync.Invalidate do
   def int_contract_call_key_dels(from_txi) do
     {int_keys, grp_keys, fname_keys, fname_grp_keys, id_keys, grp_id_keys, id_fname_keys,
      grp_id_fname_keys} =
-      case :mnesia.dirty_next(Model.IntContractCall, {from_txi, -1}) do
+      case RocksdbUtil.dirty_next(Model.IntContractCall, {from_txi, -1}) do
         :"$end_of_table" ->
           {[], [], [], [], [], [], [], []}
 

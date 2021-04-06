@@ -48,7 +48,7 @@ defmodule AeMdw.Db.Sync.Transaction do
     do: txi
 
   def clear(),
-    do: Enum.each(AeMdw.Db.Model.tables(), &:mnesia.clear_table/1)
+    do: Enum.each(AeMdw.Db.Model.tables(), &RocksdbUtil.clear_table/1)
 
   def min_txi(), do: txi(&first/1)
   def max_txi(), do: txi(&last/1)
@@ -62,11 +62,7 @@ defmodule AeMdw.Db.Sync.Transaction do
     {key_block, micro_blocks} = AE.Db.get_blocks(height)
 
     {:atomic, next_txi} =
-      :mnesia.transaction(fn ->
-        :ets.delete_all_objects(:stat_sync_cache)
-        :ets.delete_all_objects(:ct_create_sync_cache)
-        :ets.delete_all_objects(:tx_sync_cache)
-
+      RocksdbUtil.transaction(fn ->
         Sync.Name.expire(height)
         Sync.Oracle.expire(height - 1)
 

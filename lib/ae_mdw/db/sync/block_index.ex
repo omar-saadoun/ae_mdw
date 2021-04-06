@@ -30,9 +30,8 @@ defmodule AeMdw.Db.Sync.BlockIndex do
   def min_kbi(), do: kbi(&first/1)
   def max_kbi(), do: kbi(&last/1)
 
-  # TODO
   def clear(),
-    do: :mnesia.clear_table(~t[block])
+    do: RocksdbUtil.clear_table(~t[block])
 
   ################################################################################
 
@@ -42,7 +41,6 @@ defmodule AeMdw.Db.Sync.BlockIndex do
     :key = :aec_headers.type(kh)
     kb_model = Model.block(index: {height, -1}, hash: hash)
     AeMdw.Db.RocksdbUtil.write_block(kb_model)
-#    :mnesia.write(table, kb_model, :write)
     :aec_headers.prev_key_hash(kh)
   end
 
