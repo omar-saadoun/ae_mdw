@@ -6,7 +6,6 @@ defmodule AeMdw.Db.Sync.Oracle do
 
   require Record
   require Model
-  require Ex2ms
 
   import AeMdw.Db.Oracle,
     only: [

@@ -2,7 +2,6 @@ defmodule AeMdw.Db.Model do
   alias AeMdw.Db.RocksdbUtil
 
   require Record
-  require Ex2ms
 
   import Record, only: [defrecord: 2]
 

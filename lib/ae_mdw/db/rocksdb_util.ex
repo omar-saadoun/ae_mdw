@@ -230,6 +230,19 @@ defmodule AeMdw.Db.RocksdbUtil do
     for {{^height, pubkey}, _} <- data, do: pubkey
   end
 
+  def select_pointee_keys(pk) do
+    {db, cf} = AeMdw.RocksdbManager.cf_handle!(Model.Pointee)
+    x = :binary.decode_unsigned(pk, :big)
+    x0 = :binary.encode_unsigned(x-1, :big)
+    x1 = :binary.encode_unsigned(x+1, :big)
+    {:ok, it} = :rocksdb.iterator(db, cf,
+      iterate_lower_bound: encode_key({x0, {{0,-1}, 0}, ""}),
+      iterate_upper_bound: encode_key({x1, {{0,-1}, 0}, ""}))
+    data = iter_take_all(it)
+    :rocksdb.iterator_close(it)
+    for {{^pk, {bi, txi}, k}, _} <- data, do: {bi, txi, k}
+  end
+
   def iter_take_all(it) do
     case :rocksdb.iterator_move(it, :first) do
       {:ok, key, value} ->

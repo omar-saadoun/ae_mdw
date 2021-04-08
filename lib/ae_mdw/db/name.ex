@@ -5,7 +5,6 @@ defmodule AeMdw.Db.Name do
   alias AeMdw.Db.RocksdbUtil
 
   require Model
-  require Ex2ms
 
   import AeMdw.Util
   import RocksdbUtil
@@ -73,14 +72,7 @@ defmodule AeMdw.Db.Name do
     end
   end
 
-  def pointee_keys(pk) do
-    mspec =
-      Ex2ms.fun do
-        {:pointee, {^pk, {bi, txi}, k}, :_} -> {bi, txi, k}
-      end
-
-    :mnesia.dirty_select(Model.Pointee, mspec)
-  end
+  def pointee_keys(pk), do: RocksdbUtil.select_pointee_keys(pk)
 
   def pointees(pk) do
     push = fn place, m_name, {update_bi, update_txi, ptr_k} ->

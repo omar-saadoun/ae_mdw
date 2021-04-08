@@ -4,7 +4,6 @@ defmodule AeMdw.Db.Oracle do
   alias AeMdw.Db.RocksdbUtil
 
   require Model
-  require Ex2ms
 
   import AeMdw.{Util, Db.RocksdbUtil}
 
