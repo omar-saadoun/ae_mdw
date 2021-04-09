@@ -20,20 +20,37 @@ defmodule AeMdw.Db.RocksdbUtil do
   defdelegate tx_val(tx_rec, tx_type, field), to: AeUtil
   defdelegate gen_collect(table, init_key_probe, key_tester, progress, new, add, return), to: AeUtil
 
+  @tx_dict_key :"$rocksdb_transaction"
 
   def read!(tab, key), do: read(tab, key) |> one!
 
   def read(tab, key) do
+    case Process.get(@tx_dict_key) do
+      nil ->
+        read_d(tab, key)
+      tx ->
+        read_t(tx, tab, key)
+    end
+  end
+
+  defp read_d(tab, key) do
     {db, cf} = AeMdw.RocksdbManager.cf_handle!(tab)
     get(db, cf, key)
   end
 
+  defp read_t(tx, tab, key) do
+    {_db, cf} = AeMdw.RocksdbManager.cf_handle!(tab)
+    case :rocksdb.transaction_get(tx, cf, encode_key(key)) do
+      {:ok, val} ->
+        [decode_value(val)]
+      :not_found ->
+        []
+    end
+  end
+
   def read_tx!(txi), do: read_tx(txi) |> one!
 
-  def read_tx(txi) do
-    {db, cf} = AeMdw.RocksdbManager.cf_handle!(~t[tx])
-    get(db, cf, txi)
-  end
+  def read_tx(txi), do: read(~t[tx], txi)
 
   def read_block!(bi),
     do: read_block(bi) |> one!
@@ -41,10 +58,7 @@ defmodule AeMdw.Db.RocksdbUtil do
   def read_block(kbi) when is_integer(kbi),
     do: read_block({kbi, -1})
 
-  def read_block({_, _} = bi) do
-    {db, cf} = AeMdw.RocksdbManager.cf_handle!(~t[block])
-    get(db, cf, bi)
-  end
+  def read_block({_, _} = bi), do: read(~t[block], bi)
 
   def block_txi(bi), do: map_one_nil(read_block(bi), &Model.block(&1, :tx_index))
 
@@ -68,21 +82,50 @@ defmodule AeMdw.Db.RocksdbUtil do
 
   # FIXME: define keypos and schema to simplify this code
   def write_block(block) do
-    {db, cf} = AeMdw.RocksdbManager.cf_handle!(~t[block])
-    key = Model.block(block, :index)
-    AeMdw.Db.RocksdbUtil.put(db, cf, key, block)
+    write(~t[block], block)
   end
 
   def write(tab, record) when is_record(record) do
-    # FIXME: assuming keypos is 1
     key = elem(record, 1)
+    write(tab, key, record)
+  end
+
+  defp write(tab, key, val) do
+    case Process.get(@tx_dict_key) do
+      nil ->
+        write_d(tab, key, val)
+      tx ->
+        write_t(tx, tab, key, val)
+    end
+  end
+
+  defp write_d(tab, key, val) do
     {db, cf} = AeMdw.RocksdbManager.cf_handle!(tab)
-    put(db, cf, key, record)
+    put(db, cf, key, val)
+  end
+
+  defp write_t(tx, tab, key, val) do
+    {_db, cf} = AeMdw.RocksdbManager.cf_handle!(tab)
+    transaction_put(tx, cf, key, val)
   end
 
   def delete(tab, key) do
+    case Process.get(@tx_dict_key) do
+      nil ->
+        delete_d(tab, key)
+      tx ->
+        delete_t(tx, tab, key)
+    end
+  end
+
+  defp delete_d(tab, key) do
     {db, cf} = AeMdw.RocksdbManager.cf_handle!(tab)
-    delete(db, cf, key)
+    :rocksdb.delete(db, cf, encode_key(key))
+  end
+
+  defp delete_t(tx, tab, key) do
+    {_db, cf} = AeMdw.RocksdbManager.cf_handle!(tab)
+    :rocksdb.transaction_delete(tx, cf, encode_key(key))
   end
 
   def first_gen(),
@@ -182,6 +225,10 @@ defmodule AeMdw.Db.RocksdbUtil do
     :rocksdb.put(db, cf, encode_key(key), encode_value(val), opts)
   end
 
+  defp transaction_put(tx, cf, key, val) do
+    :rocksdb.transaction_put(tx, cf, encode_key(key), encode_value(val))
+  end
+
   def get(db, cf, key, opts \\ []) do
     case :rocksdb.get(db, cf, encode_key(key), opts) do
       {:ok, val} ->
@@ -272,10 +319,22 @@ defmodule AeMdw.Db.RocksdbUtil do
     data
   end
 
-  # FIXME
   def transaction(f) do
-    result = f.()
-    {:atomic, result}
+    try do
+      db = AeMdw.RocksdbManager.db_handle!()
+      {:ok, tx} = :rocksdb.transaction(db, [])
+      # nested transactions not supported
+      nil = Process.put(@tx_dict_key, tx)
+      result = f.()
+      :ok = :rocksdb.transaction_commit(tx)
+      {:atomic, result}
+    rescue
+      error ->
+        {:aborted, {error, __STACKTRACE__}}
+    after
+      # FIXME: how to close transaction?
+      Process.delete(@tx_dict_key)
+    end
   end
 
   def dirty_read(tab, key) do

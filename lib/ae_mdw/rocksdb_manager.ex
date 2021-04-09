@@ -36,7 +36,7 @@ defmodule AeMdw.RocksdbManager do
     tabs = Model.tables()
     table_opts = Enum.map(tabs, fn tab -> {Atom.to_charlist(tab), []} end)
     {:ok, db, [default | tab_handles]} =
-      :rocksdb.open('data', opts, [{'default', []}|table_opts])
+      :rocksdb.open_optimistic_transaction_db('data', opts, [{'default', []}|table_opts])
     :ets.insert(@tab, {:db, db})
 
     true = Enum.count(tabs) == Enum.count(tab_handles)
