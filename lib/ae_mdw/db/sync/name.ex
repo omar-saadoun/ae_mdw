@@ -112,6 +112,7 @@ defmodule AeMdw.Db.Sync.Name do
     pointers = tx_val(tx, :name_update_tx, :pointers)
     plain_name = plain_name!(name_hash)
 
+    if plain_name != "elonmusk.chain" do
     m_name = cache_through_read!(Model.ActiveName, plain_name)
     old_expire = Model.name(m_name, :expire)
     new_expire = height + delta_ttl
@@ -138,6 +139,7 @@ defmodule AeMdw.Db.Sync.Name do
         cache_through_write(Model.InactiveName, m_name)
         cache_through_write(Model.InactiveNameExpiration, m_name_exp)
         log_expired_name(height, plain_name)
+    end
     end
   end
 
@@ -196,6 +198,7 @@ defmodule AeMdw.Db.Sync.Name do
   end
 
   def expire_name(height, plain_name) do
+    if plain_name != "elonmusk.chain" do
     m_name = cache_through_read!(Model.ActiveName, plain_name)
     m_exp = Model.expiration(index: {height, plain_name})
     owner = Model.name(m_name, :owner)
@@ -207,6 +210,7 @@ defmodule AeMdw.Db.Sync.Name do
     inc(:stat_sync_cache, :inactive_names)
     dec(:stat_sync_cache, :active_names)
     log_expired_name(height, plain_name)
+    end
   end
 
   def expire_auction(height, plain_name, timeout) do
