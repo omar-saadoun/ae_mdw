@@ -15,6 +15,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache docker image
+        uses: actions/cache@v1
+        id: docker-cache
+        with:
+          path: /tmp/dockerapp
+          key: dockerapp-${{ hashFiles('Dockerfile') }}
+
+      - name: Restore cache
+        if: steps.docker-cache.outputs.cache-hit == 'true'
+        run: zcat "/tmp/dockerapp/mdw.tar.gz" | docker load
+
       - name: Common tests setup
         uses: ./.github/actions/tests-common
 
@@ -23,6 +34,10 @@ jobs:
 
       - name: Execute tests
         run: make docker-test
+
+      - name: Save cache
+        if: steps.docker-cache.outputs.cache-hit != 'true'
+        run: mkdir -p /tmp/dockerapp && docker save ae_mdw_ae_mdw | gzip -2 >/tmp/dockerapp/mdw.tar.gz
 
   lint:
     name: Automated linting
