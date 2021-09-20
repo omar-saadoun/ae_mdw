@@ -212,7 +212,7 @@ defmodule AeMdwWeb.Aex9Controller do
       |> Enum.sort_by(&elem(&1, 1), &<=/2)
 
     height_hash = DBN.top_height_hash(top?(conn))
-
+    IO.inspect "contracts: #{inspect contracts}"
     balances =
       contracts
       |> Enum.map(fn {contract_pk, txi} ->
@@ -222,6 +222,64 @@ defmodule AeMdwWeb.Aex9Controller do
       |> Enum.map(&balance_to_map/1)
 
     json(conn, balances)
+  end
+
+  def account_balances_is_empty?(account_pk, last_txi) do
+    contracts =
+      AeMdw.Db.Contract.aex9_search_contract(account_pk, last_txi)
+      |> Map.to_list()
+      |> Enum.sort_by(&elem(&1, 1), &<=/2)
+
+    height_hash = DBN.top_height_hash(false)
+
+    balances =
+      contracts
+      |> Enum.map(fn {contract_pk, txi} ->
+        {amount, _} = DBN.aex9_balance(contract_pk, account_pk, height_hash)
+        {amount, txi, contract_pk}
+      end)
+      |> Enum.map(&balance_to_map/1)
+
+    Enum.empty?(balances)
+  end
+
+  require Ex2ms
+  def contract_with_any_empty_account_balances(drop, take) do
+    last_txi = Util.last_txi()
+    aex9_list = Ex2ms.fun do
+      {:aex9_contract, :_, :_} = record -> record
+    end
+
+    Model.Aex9Contract
+    |> Util.select(aex9_list)
+    |> Enum.map(fn {_, {_, _, txi, _}, _} ->
+      Validate.nonneg_int!(txi)
+      |> Util.read_tx()
+      |> hd()
+      |> Format.to_map()
+      |> get_in(["tx", "contract_id"])
+      |> Validate.id!([:contract_pubkey])
+    end)
+    |> Enum.drop(drop)
+    |> Enum.take(take)
+    |> Enum.map(fn cid ->
+      DBN.aex9_balances(cid) |> balances_to_map(cid)
+    end)
+    |> Enum.flat_map(fn %{amounts: amounts, contract_id: contract_id} ->
+      amounts
+      |> Map.keys()
+      |> Enum.filter(fn account_id -> Map.get(amounts, account_id) > 0 end)
+      |> Enum.map(fn account_id -> {contract_id, account_id} end)
+    end)
+    |> Enum.map(fn {contract_id, account_id} ->
+        is_empty =
+          account_id
+          |> AeMdw.Validate.id!([:account_pubkey])
+          |> AeMdwWeb.Aex9Controller.account_balances_is_empty?(last_txi)
+
+        {contract_id, account_id, is_empty}
+        end)
+    |> Enum.filter(fn {_contract_id, _account_id, empty} -> empty end)
   end
 
   defp balances_reply(conn, contract_pk) do
