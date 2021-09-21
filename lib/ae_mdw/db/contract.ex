@@ -100,6 +100,10 @@ defmodule AeMdw.Db.Contract do
       :mnesia.write(Model.IdxContractLog, m_idx_log, :write)
     end)
 
+    write_aex9_records(contract_pk, raw_logs, txi)
+  end
+
+  def write_aex9_records(contract_pk, raw_logs, txi, account_pk \\ nil) do
     case AeMdw.Contract.is_aex9?(contract_pk) do
       true ->
         transfer_evt = AeMdw.Node.aex9_transfer_event_hash()
@@ -108,15 +112,17 @@ defmodule AeMdw.Db.Contract do
         |> Enum.with_index()
         |> Enum.each(fn
           {{_addr, [^transfer_evt, from_pk, to_pk, <<amount::256>>], ""}, i} ->
-            m_transfer = Model.aex9_transfer(index: {from_pk, to_pk, amount, txi, i})
-            m_rev_transfer = Model.rev_aex9_transfer(index: {to_pk, from_pk, amount, txi, i})
-            m_idx_transfer = Model.idx_aex9_transfer(index: {txi, i, from_pk, to_pk, amount})
-            :mnesia.write(Model.Aex9Transfer, m_transfer, :write)
-            :mnesia.write(Model.RevAex9Transfer, m_rev_transfer, :write)
-            :mnesia.write(Model.IdxAex9Transfer, m_idx_transfer, :write)
-            aex9_write_presence(contract_pk, txi, to_pk)
+            if account_pk == nil or account_pk == from_pk or account_pk == to_pk do
+              m_transfer = Model.aex9_transfer(index: {from_pk, to_pk, amount, txi, i})
+              m_rev_transfer = Model.rev_aex9_transfer(index: {to_pk, from_pk, amount, txi, i})
+              m_idx_transfer = Model.idx_aex9_transfer(index: {txi, i, from_pk, to_pk, amount})
+              :mnesia.write(Model.Aex9Transfer, m_transfer, :write)
+              :mnesia.write(Model.RevAex9Transfer, m_rev_transfer, :write)
+              :mnesia.write(Model.IdxAex9Transfer, m_idx_transfer, :write)
+              aex9_write_presence(contract_pk, txi, to_pk)
 
-            aex9_presence_cache_write({{contract_pk, txi, i}, {from_pk, to_pk}, amount})
+              aex9_presence_cache_write({{contract_pk, txi, i}, {from_pk, to_pk}, amount})
+            end
 
           {_, _} ->
             :ok
