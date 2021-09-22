@@ -101,35 +101,41 @@ defmodule AeMdw.Db.Contract do
     end)
 
     write_aex9_records(contract_pk, raw_logs, txi)
+    :ok
   end
 
   def write_aex9_records(contract_pk, raw_logs, txi, account_pk \\ nil) do
-    case AeMdw.Contract.is_aex9?(contract_pk) do
-      true ->
-        transfer_evt = AeMdw.Node.aex9_transfer_event_hash()
+    if AeMdw.Contract.is_aex9?(contract_pk) do
+      transfer_evt = AeMdw.Node.aex9_transfer_event_hash()
 
-        raw_logs
-        |> Enum.with_index()
-        |> Enum.each(fn
-          {{_addr, [^transfer_evt, from_pk, to_pk, <<amount::256>>], ""}, i} ->
-            if account_pk == nil or account_pk == from_pk or account_pk == to_pk do
-              m_transfer = Model.aex9_transfer(index: {from_pk, to_pk, amount, txi, i})
-              m_rev_transfer = Model.rev_aex9_transfer(index: {to_pk, from_pk, amount, txi, i})
-              m_idx_transfer = Model.idx_aex9_transfer(index: {txi, i, from_pk, to_pk, amount})
-              :mnesia.write(Model.Aex9Transfer, m_transfer, :write)
-              :mnesia.write(Model.RevAex9Transfer, m_rev_transfer, :write)
-              :mnesia.write(Model.IdxAex9Transfer, m_idx_transfer, :write)
-              aex9_write_presence(contract_pk, txi, to_pk)
+      raw_logs
+      |> Enum.with_index()
+      |> Enum.any?(fn
+        {{_addr, [^transfer_evt, from_pk, to_pk, <<amount::256>>], ""}, i} ->
+          if account_pk == nil or account_pk == from_pk or account_pk == to_pk do
+            IO.inspect "accounts match"
+            m_transfer = Model.aex9_transfer(index: {from_pk, to_pk, amount, txi, i})
+            m_rev_transfer = Model.rev_aex9_transfer(index: {to_pk, from_pk, amount, txi, i})
+            m_idx_transfer = Model.idx_aex9_transfer(index: {txi, i, from_pk, to_pk, amount})
+            :mnesia.write(Model.Aex9Transfer, m_transfer, :write)
+            :mnesia.write(Model.RevAex9Transfer, m_rev_transfer, :write)
+            :mnesia.write(Model.IdxAex9Transfer, m_idx_transfer, :write)
+            aex9_write_presence(contract_pk, txi, to_pk)
 
-              aex9_presence_cache_write({{contract_pk, txi, i}, {from_pk, to_pk}, amount})
-            end
+            aex9_presence_cache_write({{contract_pk, txi, i}, {from_pk, to_pk}, amount})
+            true
+          else
+            IO.inspect "accounts differ"
+            false
+          end
 
-          {_, _} ->
-            :ok
-        end)
+        {{_addr, [_evt_hash, _from_pk, _to_pk, amount], data}, _i} ->
+          IO.inspect "other amount #{inspect amount} or data #{inspect data}"
+          false
+      end)
 
-      false ->
-        nil
+    else
+      false
     end
   end
 
