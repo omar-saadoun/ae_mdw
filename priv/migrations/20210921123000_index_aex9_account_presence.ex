@@ -18,6 +18,7 @@ defmodule AeMdw.Migrations.IndexAex9AccountPresence do
   # alias AeMdw.Db.Sync.Transaction, as: SyncTx
   alias AeMdw.Sync.Supervisor, as: SyncSup
 
+  import AeMdw.Util, only: [ok!: 1]
   require Model
   require Ex2ms
 
@@ -175,6 +176,7 @@ defmodule AeMdw.Migrations.IndexAex9AccountPresence do
            contract_pk: contract_pk
          }
        ) do
+    hash_recomputed = :aec_headers.hash_header(:aec_blocks.to_micro_header(micro_block)) |> ok!
     micro_block
     |> :aec_blocks.txs()
     |> Enum.map(fn signed_tx ->
@@ -183,7 +185,7 @@ defmodule AeMdw.Migrations.IndexAex9AccountPresence do
     end)
     |> Enum.filter(&tx_type_and_contract_match?(&1, contract_pk))
     |> Enum.map(fn {_type, tx} ->
-      tx_raw_logs = contract_call_tx_logs(tx, contract_pk, block_index)
+      tx_raw_logs = contract_call_tx_logs(tx, contract_pk, block_index, hash_recomputed)
       # TODO: set proper txi for this tx (raw_logs)
       txi = List.first(call_txi_list)
 
@@ -215,9 +217,10 @@ defmodule AeMdw.Migrations.IndexAex9AccountPresence do
       :aect_call_tx.contract_pubkey(tx) == account_contract_pk
   end
 
-  defp contract_call_tx_logs(tx, contract_pk, block_index) do
+  defp contract_call_tx_logs(tx, contract_pk, block_index, hash_recomputed) do
     block_hash = block_index |> Util.read_block!() |> Model.block(:hash)
 
+    if block_hash != hash_recomputed, do: IO.inspect "##### HASH DIFF ####"
     {_fun_arg_res, call_rec} =
       Contract.call_tx_info(tx, contract_pk, block_hash, &Contract.to_map/1)
 
