@@ -114,6 +114,12 @@ defmodule AeMdw.Migrations.IndexAex9AccountPresence do
     |> Enum.filter(fn %Account2Fix{account_pk: account_pk} ->
       account_balances_is_empty?(account_pk, last_txi)
     end)
+    |> Enum.map(fn %Account2Fix{account_pk: account_pk, contract_pk: contract_pk} = acc ->
+      IO.inspect "###### EMPTY BAL #####"
+      IO.puts :aeser_api_encoder.encode(:account_pubkey, account_pk)
+      IO.puts :aeser_api_encoder.encode(:contract_pubkey, contract_pk)
+      acc
+    end)
   end
 
   # defp origin_txi(contract_pk) do

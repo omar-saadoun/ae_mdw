@@ -113,7 +113,7 @@ defmodule AeMdw.Db.Contract do
       |> Enum.any?(fn
         {{_addr, [^transfer_evt, from_pk, to_pk, <<amount::256>>], ""}, i} ->
           if account_pk == nil or account_pk == from_pk or account_pk == to_pk do
-            IO.inspect "accounts match"
+            account_pk != nil && IO.inspect "accounts match"
             m_transfer = Model.aex9_transfer(index: {from_pk, to_pk, amount, txi, i})
             m_rev_transfer = Model.rev_aex9_transfer(index: {to_pk, from_pk, amount, txi, i})
             m_idx_transfer = Model.idx_aex9_transfer(index: {txi, i, from_pk, to_pk, amount})
@@ -125,7 +125,9 @@ defmodule AeMdw.Db.Contract do
             aex9_presence_cache_write({{contract_pk, txi, i}, {from_pk, to_pk}, amount})
             true
           else
-            IO.inspect "accounts differ"
+            cid = :aeser_api_encoder.encode(:contract_pubkey, contract_pk)
+            aid = :aeser_api_encoder.encode(:account_pubkey, account_pk)
+            account_pk != nil && IO.inspect "accounts differ #{cid} #{aid}"
             false
           end
 
