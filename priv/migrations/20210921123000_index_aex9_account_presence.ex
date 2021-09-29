@@ -6,11 +6,11 @@ defmodule AeMdw.Migrations.IndexAex9AccountPresence do
   alias AeMdw.Node, as: AE
   alias AeMdw.Node.Db, as: DBN
 
-  alias AeMdw.Contract
-  alias AeMdw.Db.Contract, as: DbContract
+  # alias AeMdw.Contract
+  # alias AeMdw.Db.Contract, as: DbContract
   alias AeMdw.Db.Format
   alias AeMdw.Db.Model
-  alias AeMdw.Db.Origin
+  # alias AeMdw.Db.Origin
   alias AeMdw.Db.Util
   alias AeMdw.Validate
   alias AeMdwWeb.Helpers.Aex9Helper
@@ -44,35 +44,81 @@ defmodule AeMdw.Migrations.IndexAex9AccountPresence do
       MdwApp.init(:db_state)
     end
 
-    indexed_count =
+    account_list =
       fetch_aex9_contracts()
       |> accounts_without_balance(60, 30)
-      |> Enum.map(fn %Account2Fix{
-                       contract_pk: contract_pk
-                     } = account2fix ->
-        # contract_pk
-        # |> origin_txi()
-        count =
-          {:contract, contract_pk}
-          |> Origin.tx_index()
-          |> fetch_contract_calls_indexes()
-          |> Enum.group_by(fn %Aex9CallIndex{height: height} -> height end)
-          |> Enum.map(fn {height, calls_idxs} ->
-            _count = reindex_account_aex9_mbs_txs(account2fix, height, calls_idxs)
+
+    top_height = :aec_headers.height(:aec_chain.top_header())
+    transfer_evt = AeMdw.Node.aex9_transfer_event_hash()
+
+    # Enum.reduce(0..top_height, 0, fn height, htxi ->
+    Enum.reduce(315_000..top_height, 0, fn height, htxi ->
+      if rem(height, 1000) == 0, do: IO.puts height
+      {_key_block, micro_blocks} = AE.Db.get_blocks(height)
+
+      micro_blocks
+      |> Enum.with_index()
+      |> Enum.reduce(htxi, fn {mblock, _mbi}, mtxi ->
+          # block_index = {height, mbi}
+          :aec_blocks.txs(mblock)
+          |> Enum.reduce(mtxi, fn signed_tx, txi ->
+            {mod, tx} = :aetx.specialize_callback(:aetx_sign.tx(signed_tx))
+            # hash = :aetx_sign.hash(signed_tx)
+            type = mod.type()
+
+            if type == :contract_call_tx do
+              pk = :aect_call_tx.contract_pubkey(tx)
+              accounts = Enum.filter(account_list, fn %{contract_pk: contract_pk} -> pk == contract_pk end)
+
+              if accounts != [] do
+                call_id = :aect_call_tx.call_id(tx)
+                block_hash = :aec_headers.hash_header(:aec_blocks.to_micro_header(mblock)) |> ok!
+                call_rec = :aec_chain.get_contract_call(pk, call_id, block_hash) |> ok!
+                raw_logs = :aect_call.log(call_rec)
+
+                Enum.each(raw_logs, fn
+                  {_addr, [^transfer_evt, from_pk, to_pk, <<_amount::256>>], ""} ->
+                    account_found = Enum.find(account_list, fn %{contract_pk: contract_pk} ->
+                      from_pk == contract_pk or to_pk == contract_pk
+                    end)
+                    if account_found, do: IO.inspect account_found
+                end)
+              end
+            end
+            txi + 1
           end)
-          |> Enum.sum()
-
-        count
       end)
-      |> Enum.sum()
+    end)
 
+    # indexed_count =
+    #   fetch_aex9_contracts()
+    #   |> accounts_without_balance(60, 30)
+    #   |> Enum.map(fn %Account2Fix{
+    #                    contract_pk: contract_pk
+    #                  } = account2fix ->
+    #     # contract_pk
+    #     # |> origin_txi()
+    #     count =
+    #       {:contract, contract_pk}
+    #       |> Origin.tx_index()
+    #       |> fetch_contract_calls_indexes()
+    #       |> Enum.group_by(fn %Aex9CallIndex{height: height} -> height end)
+    #       |> Enum.map(fn {height, calls_idxs} ->
+    #         _count = reindex_account_aex9_mbs_txs(account2fix, height, calls_idxs)
+    #       end)
+    #       |> Enum.sum()
+
+    #     count
+    #   end)
+    #   |> Enum.sum()
+    indexed_count = 0
     duration = DateTime.diff(DateTime.utc_now(), begin)
     IO.puts("Indexed #{indexed_count} records in #{duration}s")
 
     {:ok, {indexed_count, duration}}
   end
 
-  defp fetch_aex9_contracts() do
+  def fetch_aex9_contracts() do
     aex9_spec =
       Ex2ms.fun do
         {:aex9_contract, :_, :_} = record -> record
@@ -89,7 +135,7 @@ defmodule AeMdw.Migrations.IndexAex9AccountPresence do
     end)
   end
 
-  defp accounts_without_balance(contract_list, drop, take) do
+  def accounts_without_balance(contract_list, drop, take) do
     last_txi = Util.last_txi()
 
     contract_list
@@ -122,116 +168,116 @@ defmodule AeMdw.Migrations.IndexAex9AccountPresence do
     end)
   end
 
-  # defp origin_txi(contract_pk) do
-  #   contract_create_spec =
+  def origin_txi(contract_pk) do
+    contract_create_spec =
+      Ex2ms.fun do
+        {:origin, {:contract_create_tx, ^contract_pk, create_txi}, :_} -> create_txi
+      end
+
+    Model.Origin
+    |> Util.select(contract_create_spec)
+    |> List.first()
+  end
+
+  # defp fetch_contract_calls_indexes(create_txi) do
+  #   contract_call_spec =
   #     Ex2ms.fun do
-  #       {:origin, {:contract_create_tx, ^contract_pk, create_txi}, :_} -> create_txi
+  #       {:contract_call, {^create_txi, call_txi}, :_, :_, :_, :_} -> call_txi
   #     end
 
-  #   Model.Origin
-  #   |> Util.select(contract_create_spec)
-  #   |> List.first()
+  #   Model.ContractCall
+  #   |> AeMdw.Db.Util.select(contract_call_spec)
+  #   |> Enum.map(fn call_txi ->
+  #     Model.tx(block_index: {height, mbi}) = Util.read_tx!(call_txi)
+
+  #     %Aex9CallIndex{
+  #       height: height,
+  #       mbi: mbi,
+  #       call_txi: call_txi
+  #     }
+  #   end)
   # end
 
-  defp fetch_contract_calls_indexes(create_txi) do
-    contract_call_spec =
-      Ex2ms.fun do
-        {:contract_call, {^create_txi, call_txi}, :_, :_, :_, :_} -> call_txi
-      end
+  # defp reindex_account_aex9_mbs_txs(account2fix, height, calls_idxs) do
+  #   {_key_block, micro_blocks} = AE.Db.get_blocks(height)
+  #   mbi_list = Enum.map(calls_idxs, fn %Aex9CallIndex{mbi: mbi} -> mbi end)
 
-    Model.ContractCall
-    |> AeMdw.Db.Util.select(contract_call_spec)
-    |> Enum.map(fn call_txi ->
-      Model.tx(block_index: {height, mbi}) = Util.read_tx!(call_txi)
+  #   IO.puts("micro-blocks from calls #{inspect(mbi_list, charlists: :as_lists)}")
 
-      %Aex9CallIndex{
-        height: height,
-        mbi: mbi,
-        call_txi: call_txi
-      }
-    end)
-  end
+  #   micro_blocks
+  #   |> Enum.with_index()
+  #   |> Enum.filter(fn {_mb, mbi} -> mbi in mbi_list end)
+  #   |> Enum.reduce(0, fn {mblock, mbi}, acc ->
+  #     IO.puts("reindexing height #{height} micro-block #{mbi}")
 
-  defp reindex_account_aex9_mbs_txs(account2fix, height, calls_idxs) do
-    {_key_block, micro_blocks} = AE.Db.get_blocks(height)
-    mbi_list = Enum.map(calls_idxs, fn %Aex9CallIndex{mbi: mbi} -> mbi end)
+  #     call_txi_list =
+  #       calls_idxs
+  #       |> Enum.filter(fn %Aex9CallIndex{mbi: call_mbi} -> call_mbi == mbi end)
+  #       |> Enum.map(fn %Aex9CallIndex{call_txi: call_txi} -> call_txi end)
 
-    IO.puts("micro-blocks from calls #{inspect(mbi_list, charlists: :as_lists)}")
+  #     acc + write_aex9_records_on_match(mblock, {height, mbi}, call_txi_list, account2fix)
+  #   end)
+  # end
 
-    micro_blocks
-    |> Enum.with_index()
-    |> Enum.filter(fn {_mb, mbi} -> mbi in mbi_list end)
-    |> Enum.reduce(0, fn {mblock, mbi}, acc ->
-      IO.puts("reindexing height #{height} micro-block #{mbi}")
+  # defp write_aex9_records_on_match(
+  #        micro_block,
+  #        block_index,
+  #        call_txi_list,
+  #        %Account2Fix{
+  #          account_pk: account_pk,
+  #          contract_pk: contract_pk
+  #        }
+  #      ) do
+  #   hash_recomputed = :aec_headers.hash_header(:aec_blocks.to_micro_header(micro_block)) |> ok!
+  #   micro_block
+  #   |> :aec_blocks.txs()
+  #   |> Enum.map(fn signed_tx ->
+  #     {mod, tx} = :aetx.specialize_callback(:aetx_sign.tx(signed_tx))
+  #     {mod.type(), tx}
+  #   end)
+  #   |> Enum.filter(&tx_type_and_contract_match?(&1, contract_pk))
+  #   |> Enum.map(fn {_type, tx} ->
+  #     tx_raw_logs = contract_call_tx_logs(tx, contract_pk, block_index, hash_recomputed)
+  #     # TODO: set proper txi for this tx (raw_logs)
+  #     txi = List.first(call_txi_list)
 
-      call_txi_list =
-        calls_idxs
-        |> Enum.filter(fn %Aex9CallIndex{mbi: call_mbi} -> call_mbi == mbi end)
-        |> Enum.map(fn %Aex9CallIndex{call_txi: call_txi} -> call_txi end)
+  #     # raw_logs
+  #     # |> find_txis_by_data_log(contract_pk)
+  #     # |> Enum.filter(&same_micro_block?(&1, block_index))
+  #     # |> group_raw_logs_by_txi(call_txi_list)
+  #     # |> Enum.map(fn {txi, raw_logs} ->
+  #     contract_id = Aex9Helper.enc_ct(contract_pk)
+  #     account_id = Aex9Helper.enc_id(account_pk)
+  #     IO.inspect(contract_id)
+  #     IO.inspect(account_id)
 
-      acc + write_aex9_records_on_match(mblock, {height, mbi}, call_txi_list, account2fix)
-    end)
-  end
+  #     if DbContract.write_aex9_records(contract_pk, tx_raw_logs, txi, account_pk) do
+  #       account_id = Aex9Helper.enc_id(account_pk)
+  #       contract_id = Aex9Helper.enc_ct(contract_pk)
+  #       IO.puts("Fixed account #{account_id} balance for #{contract_id}")
+  #       1
+  #     else
+  #       IO.puts("Failed to write")
+  #       0
+  #     end
+  #   end)
+  #   |> Enum.sum()
+  # end
 
-  defp write_aex9_records_on_match(
-         micro_block,
-         block_index,
-         call_txi_list,
-         %Account2Fix{
-           account_pk: account_pk,
-           contract_pk: contract_pk
-         }
-       ) do
-    hash_recomputed = :aec_headers.hash_header(:aec_blocks.to_micro_header(micro_block)) |> ok!
-    micro_block
-    |> :aec_blocks.txs()
-    |> Enum.map(fn signed_tx ->
-      {mod, tx} = :aetx.specialize_callback(:aetx_sign.tx(signed_tx))
-      {mod.type(), tx}
-    end)
-    |> Enum.filter(&tx_type_and_contract_match?(&1, contract_pk))
-    |> Enum.map(fn {_type, tx} ->
-      tx_raw_logs = contract_call_tx_logs(tx, contract_pk, block_index, hash_recomputed)
-      # TODO: set proper txi for this tx (raw_logs)
-      txi = List.first(call_txi_list)
+  # defp tx_type_and_contract_match?({type, tx}, account_contract_pk) do
+  #   type == :contract_call_tx and
+  #     :aect_call_tx.contract_pubkey(tx) == account_contract_pk
+  # end
 
-      # raw_logs
-      # |> find_txis_by_data_log(contract_pk)
-      # |> Enum.filter(&same_micro_block?(&1, block_index))
-      # |> group_raw_logs_by_txi(call_txi_list)
-      # |> Enum.map(fn {txi, raw_logs} ->
-      contract_id = Aex9Helper.enc_ct(contract_pk)
-      account_id = Aex9Helper.enc_id(account_pk)
-      IO.inspect(contract_id)
-      IO.inspect(account_id)
+  # defp contract_call_tx_logs(tx, contract_pk, block_index, hash_recomputed) do
+  #   block_hash = block_index |> Util.read_block!() |> Model.block(:hash)
 
-      if DbContract.write_aex9_records(contract_pk, tx_raw_logs, txi, account_pk) do
-        account_id = Aex9Helper.enc_id(account_pk)
-        contract_id = Aex9Helper.enc_ct(contract_pk)
-        IO.puts("Fixed account #{account_id} balance for #{contract_id}")
-        1
-      else
-        IO.puts("Failed to write")
-        0
-      end
-    end)
-    |> Enum.sum()
-  end
+  #   if block_hash != hash_recomputed, do: IO.inspect "##### HASH DIFF ####"
+  #   {_fun_arg_res, call_rec} =
+  #     Contract.call_tx_info(tx, contract_pk, block_hash, &Contract.to_map/1)
 
-  defp tx_type_and_contract_match?({type, tx}, account_contract_pk) do
-    type == :contract_call_tx and
-      :aect_call_tx.contract_pubkey(tx) == account_contract_pk
-  end
-
-  defp contract_call_tx_logs(tx, contract_pk, block_index, hash_recomputed) do
-    block_hash = block_index |> Util.read_block!() |> Model.block(:hash)
-
-    if block_hash != hash_recomputed, do: IO.inspect "##### HASH DIFF ####"
-    {_fun_arg_res, call_rec} =
-      Contract.call_tx_info(tx, contract_pk, block_hash, &Contract.to_map/1)
-
-    :aect_call.log(call_rec)
-  end
+  #   :aect_call.log(call_rec)
+  # end
 
   # defp find_txis_by_data_log(raw_logs, contract_pk) do
   #   create_txi = origin_txi(contract_pk)
