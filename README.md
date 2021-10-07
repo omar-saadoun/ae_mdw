@@ -157,7 +157,7 @@ It is also possible that middleware will produce blockchain database (if `aetern
 
 ## Hosted Infrastructure
 
-We currently provide hosted infrastructure at https://mainnet.aeternity.io/mdw/ , all examples here are based on it. 
+We currently provide hosted infrastructure at https://mainnet.aeternity.io/mdw/ for API endpoints and WebSockets interface, all examples here are based on it. 
 
 **NOTE:** Local deploy with default configuration endpoints **will not** containt `/mdw/` segment on the path.
 
@@ -4237,7 +4237,7 @@ The websocket interface, which listens by default on port `4001`, gives asynchro
 The websocket interface accepts JSON - encoded commands to subscribe and unsubscribe, and answers these with the list of subscriptions. A session will look like this:
 
 ```
-wscat -c ws://localhost:4001/websocket
+wscat -c wss://mainnet.aeternity.io/mdw/websocket/websocket
 
 connected (press CTRL+C to quit)
 > {"op":"Subscribe", "payload": "KeyBlocks"}
